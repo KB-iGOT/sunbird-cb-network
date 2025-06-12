@@ -6,11 +6,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StreamUtils;
 import org.springframework.util.StringUtils;
+import org.sunbird.cb.hubservices.common.auth.AccessTokenValidator;
+import org.sunbird.cb.hubservices.common.util.ProjectUtil;
 import org.sunbird.cb.hubservices.exception.ApplicationException;
 import org.sunbird.cb.hubservices.model.MultiSearch;
 import org.sunbird.cb.hubservices.model.Response;
+import org.sunbird.cb.hubservices.model.SBApiResponse;
 import org.sunbird.cb.hubservices.service.IConnectionService;
 import org.sunbird.cb.hubservices.service.IProfileService;
 import org.sunbird.cb.hubservices.service.IUserUtility;
@@ -32,6 +34,9 @@ public class ProfileService implements IProfileService {
 
 	@Autowired
 	IUserUtility iUserUtility;
+
+	@Autowired
+	AccessTokenValidator accessTokenValidator;
 
 	@Override
 	public Response findCommonProfileV2(String userId, int offset, int limit) {
@@ -86,41 +91,25 @@ public class ProfileService implements IProfileService {
 	}
 
 	@Override
-	public Response getRelationshipBetweenUsers(Map<String, Object> requestBody) {
-		Response response = new Response();
-		String fromUserId;
-		String toUserId;
-		if (!MapUtils.isEmpty(requestBody)) {
-			if (StringUtils.isEmpty(requestBody.get(Constants.FROM_USER_ID))) {
-				response.put(Constants.ResponseStatus.MESSAGE, Constants.FROM_USERID_VALIDATION_MSG);
-				response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
-				response.put(Constants.RESPONSE_CODE, HttpStatus.BAD_REQUEST.value());
-				return response;
-			} else if (StringUtils.isEmpty(requestBody.get(Constants.TO_USERID))) {
-				response.put(Constants.ResponseStatus.MESSAGE, Constants.TO_USERID_VALIDATION_MSG);
-				response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
-				response.put(Constants.RESPONSE_CODE, HttpStatus.BAD_REQUEST.value());
+	public SBApiResponse getRelationshipBetweenUsers(String toUserId, String authToken) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_USER_RELATIONSHIP);
+		String fromUserId = "";
+		try {
+			fromUserId = accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
+			if (StringUtils.isEmpty(fromUserId)) {
 				return response;
 			}
-			fromUserId = (String) requestBody.get(Constants.FROM_USER_ID);
-			toUserId = (String) requestBody.get(Constants.TO_USERID);
-		} else {
-			response.put(Constants.ResponseStatus.MESSAGE, Constants.REQUEST_BODY_VALIDATION_MSG);
-			response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
-			response.put(Constants.RESPONSE_CODE, HttpStatus.BAD_REQUEST.value());
-			return response;
-		}
-		try {
 			Map<String, String> map = connectionService.getRelationshipBetweenUsers(fromUserId,
 					toUserId);
-			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
-			response.put(Constants.ResponseStatus.DATA, map);
-			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
+			response.getResult().put("response",map);
+			response.getParams().setStatus(Constants.OK);
+			response.setResponseCode(HttpStatus.OK);
 			return response;
 		} catch (Exception e) {
-			logger.error("Error fetching relationship between {} and {}: {}", fromUserId, toUserId, e.getMessage());
-			response.put(Constants.ResponseStatus.MESSAGE, Constants.ERR_FETCHING_RELATIONSHIP_MSG);
-			response.put(Constants.ResponseStatus.STATUS, HttpStatus.INTERNAL_SERVER_ERROR);
+			logger.error(String.format("Error fetching relationship between  in %s %s: %s", fromUserId, toUserId, e));
+			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+			response.getParams().setErrmsg("Error fetching relationship between users");
+			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
 			return response;
 		}
 	}

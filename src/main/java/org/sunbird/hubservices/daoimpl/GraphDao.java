@@ -328,9 +328,8 @@ public class GraphDao implements IGraphDao {
                 rel.asMap().forEach((k, v) -> relationshipProps.put(k, v != null ? v.toString() : null));
             }
         } catch (Exception e) {
-            logger.error("Error fetching relationship between {} and {}: {}", fromUser, toUser, e.getMessage());
+            logger.error(String.format("Error fetching relationship between %s and %s : %s", fromUser, toUser, e));
         }
         return relationshipProps;
     }
-
 }

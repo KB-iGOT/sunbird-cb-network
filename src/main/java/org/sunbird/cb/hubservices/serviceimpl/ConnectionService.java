@@ -243,7 +243,7 @@ public class ConnectionService implements IConnectionService {
 		try {
 			return nodeService.getRelationshipBetweenUsers(fromUserId, toUserId);
 		} catch (Exception e) {
-			logger.error("Error fetching relationship between {} and {}: {}", fromUserId, toUserId, e.getMessage());
+			logger.error(String.format("Error fetching relationship between %s and %s : %s", fromUserId, toUserId, e));
 			return new HashMap<>();
 		}
 	}
