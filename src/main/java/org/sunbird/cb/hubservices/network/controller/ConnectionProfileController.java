@@ -15,6 +15,8 @@ import org.sunbird.cb.hubservices.model.Response;
 import org.sunbird.cb.hubservices.serviceimpl.ProfileService;
 import org.sunbird.cb.hubservices.util.Constants;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping(Constants.CONNECTIONS_PROFILE)
 public class ConnectionProfileController {
@@ -69,6 +71,12 @@ public class ConnectionProfileController {
 		Response response = profileService.findProfilesV2(userId, pageNo, pageSize);
 		return new ResponseEntity<>(response, HttpStatus.OK);
 
+	}
+
+	@PostMapping("/connections/relationship")
+	public ResponseEntity<Response> getRelationshipBetweenUsers( @RequestBody Map<String, Object> requestBody) {
+		Response response=profileService.getRelationshipBetweenUsers(requestBody);
+		return new ResponseEntity<>(response,HttpStatus.OK);
 	}
 
 }

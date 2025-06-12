@@ -1,9 +1,6 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +76,16 @@ public class NodeService implements INodeService {
 	private void checkParams(String id, Map<String, String> relationProperties) {
 		if (StringUtils.isEmpty(id) || CollectionUtils.isEmpty(relationProperties)) {
 			throw new ValidationException("id or relation properties cannot be empty");
+		}
+	}
+
+	@Override
+	public Map<String, String> getRelationshipBetweenUsers(String fromUserId, String toUserId) {
+		try {
+			return graphDao.getRelationshipBetweenUsers(fromUserId, toUserId);
+		} catch (GraphException e) {
+			logger.error("Error fetching relationship between {} and {}: {}", fromUserId, toUserId, e.getMessage());
+			return new HashMap<>();
 		}
 	}
 
