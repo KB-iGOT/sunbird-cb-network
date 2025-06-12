@@ -309,4 +309,27 @@ public class GraphDao implements IGraphDao {
 
     }
 
+
+    @Override
+    public Map<String, String> getRelationshipBetweenUsers(String fromUser, String toUser) {
+        Map<String, String> relationshipProps = new HashMap<>();
+        String query = "MATCH (a:" + label + ")-[r:connect]-(b:" + label + ") " +
+                "WHERE a.id = $fromUser AND b.id = $toUser RETURN r LIMIT 1";
+        Map<String, Object> params = new HashMap<>();
+        params.put(Constants.FROM_USER, fromUser);
+        params.put(Constants.TO_USER, toUser);
+
+        try (Session session = neo4jDriver.session()) {
+            Statement statement = new Statement(query, params);
+            StatementResult result = session.run(statement);
+            if (result.hasNext()) {
+                Record record = result.next();
+                org.neo4j.driver.v1.types.Relationship rel = record.get("r").asRelationship();
+                rel.asMap().forEach((k, v) -> relationshipProps.put(k, v != null ? v.toString() : null));
+            }
+        } catch (Exception e) {
+            logger.error(String.format("Error fetching relationship between %s and %s : %s", fromUser, toUser, e));
+        }
+        return relationshipProps;
+    }
 }

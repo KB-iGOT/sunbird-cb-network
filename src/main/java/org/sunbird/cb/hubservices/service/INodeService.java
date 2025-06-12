@@ -17,4 +17,6 @@ public interface INodeService {
 	public List<Node> getNodes(String id, Map<String, String> relationProperties, Constants.DIRECTION direction,
 			int offset, int size, List<String> attributes);
 
+	Map<String, String> getRelationshipBetweenUsers(String fromUserId, String toUserId);
+
 }
