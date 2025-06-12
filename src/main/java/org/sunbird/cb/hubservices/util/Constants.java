@@ -65,6 +65,16 @@ public class Constants {
 	public static final String TABLE_USER = "user";
 	public static final String CHANNEL = "channel";
 	public static final String FULL_NAME = "fullName";
+	public static final String RELATIONSHIP = "/relationship";
+	public static final String FROM_USER_ID = "fromUserId";
+	public static final String RESPONSE_CODE = "responseCode";
+	public static final String TO_USERID = "toUserId";
+	public static final String FROM_USERID_VALIDATION_MSG = "fromUserId cannot be empty";
+	public static final String TO_USERID_VALIDATION_MSG = "toUserId cannot be empty";
+	public static final String REQUEST_BODY_VALIDATION_MSG = "Request body cannot be empty";
+	public static final String ERR_FETCHING_RELATIONSHIP_MSG = "Error fetching relationship";
+	public static final String FROM_USER = "fromUser";
+	public static final String TO_USER = "toUser";
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),

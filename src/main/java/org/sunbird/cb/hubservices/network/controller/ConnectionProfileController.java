@@ -73,7 +73,7 @@ public class ConnectionProfileController {
 
 	}
 
-	@PostMapping("/connections/relationship")
+	@PostMapping(Constants.RELATIONSHIP)
 	public ResponseEntity<Response> getRelationshipBetweenUsers( @RequestBody Map<String, Object> requestBody) {
 		Response response=profileService.getRelationshipBetweenUsers(requestBody);
 		return new ResponseEntity<>(response,HttpStatus.OK);

@@ -88,26 +88,26 @@ public class ProfileService implements IProfileService {
 	@Override
 	public Response getRelationshipBetweenUsers(Map<String, Object> requestBody) {
 		Response response = new Response();
-		String fromUserId = null;
-		String toUserId = null;
+		String fromUserId;
+		String toUserId;
 		if (!MapUtils.isEmpty(requestBody)) {
-			if (StringUtils.isEmpty(requestBody.get("fromUserId"))) {
-				response.put(Constants.ResponseStatus.MESSAGE, "fromUserId cannot be empty");
+			if (StringUtils.isEmpty(requestBody.get(Constants.FROM_USER_ID))) {
+				response.put(Constants.ResponseStatus.MESSAGE, Constants.FROM_USERID_VALIDATION_MSG);
 				response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
-				response.put("responseCode", HttpStatus.BAD_REQUEST.value());
+				response.put(Constants.RESPONSE_CODE, HttpStatus.BAD_REQUEST.value());
 				return response;
-			} else if (StringUtils.isEmpty(requestBody.get("toUserId"))) {
-				response.put(Constants.ResponseStatus.MESSAGE, "toUserId cannot be empty");
+			} else if (StringUtils.isEmpty(requestBody.get(Constants.TO_USERID))) {
+				response.put(Constants.ResponseStatus.MESSAGE, Constants.TO_USERID_VALIDATION_MSG);
 				response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
-				response.put("responseCode", HttpStatus.BAD_REQUEST.value());
+				response.put(Constants.RESPONSE_CODE, HttpStatus.BAD_REQUEST.value());
 				return response;
 			}
-			fromUserId = (String) requestBody.get("fromUserId");
-			toUserId = (String) requestBody.get("toUserId");
+			fromUserId = (String) requestBody.get(Constants.FROM_USER_ID);
+			toUserId = (String) requestBody.get(Constants.TO_USERID);
 		} else {
-			response.put(Constants.ResponseStatus.MESSAGE, "Request body cannot be empty");
+			response.put(Constants.ResponseStatus.MESSAGE, Constants.REQUEST_BODY_VALIDATION_MSG);
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
-			response.put("responseCode", HttpStatus.BAD_REQUEST.value());
+			response.put(Constants.RESPONSE_CODE, HttpStatus.BAD_REQUEST.value());
 			return response;
 		}
 		try {
@@ -119,7 +119,7 @@ public class ProfileService implements IProfileService {
 			return response;
 		} catch (Exception e) {
 			logger.error("Error fetching relationship between {} and {}: {}", fromUserId, toUserId, e.getMessage());
-			response.put(Constants.ResponseStatus.MESSAGE, "Error fetching relationship");
+			response.put(Constants.ResponseStatus.MESSAGE, Constants.ERR_FETCHING_RELATIONSHIP_MSG);
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.INTERNAL_SERVER_ERROR);
 			return response;
 		}

@@ -316,8 +316,8 @@ public class GraphDao implements IGraphDao {
         String query = "MATCH (a:" + label + ")-[r:connect]-(b:" + label + ") " +
                 "WHERE a.id = $fromUser AND b.id = $toUser RETURN r LIMIT 1";
         Map<String, Object> params = new HashMap<>();
-        params.put("fromUser", fromUser);
-        params.put("toUser", toUser);
+        params.put(Constants.FROM_USER, fromUser);
+        params.put(Constants.TO_USER, toUser);
 
         try (Session session = neo4jDriver.session()) {
             Statement statement = new Statement(query, params);
