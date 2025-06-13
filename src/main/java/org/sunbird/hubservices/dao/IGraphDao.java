@@ -16,4 +16,6 @@ public interface IGraphDao {
 
 	public List<Node> getNeighbours(String UUID, Map<String, String> relationProperties, Constants.DIRECTION direction,
 			int level, int offset, int limit, List<String> attributes);
+
+	Map<String, String> getRelationshipBetweenUsers(String fromUserId, String toUserId);
 }

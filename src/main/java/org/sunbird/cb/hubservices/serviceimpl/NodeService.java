@@ -1,9 +1,6 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,4 +79,13 @@ public class NodeService implements INodeService {
 		}
 	}
 
+	@Override
+	public Map<String, String> getRelationshipBetweenUsers(String fromUserId, String toUserId) {
+		try {
+			return graphDao.getRelationshipBetweenUsers(fromUserId, toUserId);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching relationship between %s and %s: %s", fromUserId, toUserId, e));
+			return new HashMap<>();
+		}
+	}
 }

@@ -1,13 +1,18 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
+import org.apache.commons.collections4.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.sunbird.cb.hubservices.common.auth.AccessTokenValidator;
+import org.sunbird.cb.hubservices.common.util.ProjectUtil;
 import org.sunbird.cb.hubservices.exception.ApplicationException;
 import org.sunbird.cb.hubservices.model.MultiSearch;
 import org.sunbird.cb.hubservices.model.Response;
+import org.sunbird.cb.hubservices.model.SBApiResponse;
 import org.sunbird.cb.hubservices.service.IConnectionService;
 import org.sunbird.cb.hubservices.service.IProfileService;
 import org.sunbird.cb.hubservices.service.IUserUtility;
@@ -29,6 +34,9 @@ public class ProfileService implements IProfileService {
 
 	@Autowired
 	IUserUtility iUserUtility;
+
+	@Autowired
+	AccessTokenValidator accessTokenValidator;
 
 	@Override
 	public Response findCommonProfileV2(String userId, int offset, int limit) {
@@ -82,4 +90,27 @@ public class ProfileService implements IProfileService {
 		return response;
 	}
 
+	@Override
+	public SBApiResponse getRelationshipBetweenUsers(String toUserId, String authToken) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_USER_RELATIONSHIP);
+		String fromUserId = "";
+		try {
+			fromUserId = accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
+			if (StringUtils.isEmpty(fromUserId)) {
+				return response;
+			}
+			Map<String, String> map = connectionService.getRelationshipBetweenUsers(fromUserId,
+					toUserId);
+			response.getResult().put("response",map);
+			response.getParams().setStatus(Constants.OK);
+			response.setResponseCode(HttpStatus.OK);
+			return response;
+		} catch (Exception e) {
+			logger.error(String.format("Error fetching relationship between  in %s %s: %s", fromUserId, toUserId, e));
+			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+			response.getParams().setErrmsg("Error fetching relationship between users");
+			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			return response;
+		}
+	}
 }

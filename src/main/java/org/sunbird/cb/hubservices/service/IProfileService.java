@@ -3,7 +3,10 @@ package org.sunbird.cb.hubservices.service;
 
 import org.sunbird.cb.hubservices.model.MultiSearch;
 import org.sunbird.cb.hubservices.model.Response;
+import org.sunbird.cb.hubservices.model.SBApiResponse;
 import org.sunbird.cb.hubservices.util.Constants;
+
+import java.util.Map;
 
 public interface IProfileService {
 
@@ -15,4 +18,5 @@ public interface IProfileService {
 
 	public Response findProfileRequestedV2(String userId, int offset, int limit, Constants.DIRECTION direction);
 
+	SBApiResponse getRelationshipBetweenUsers(String toUserId, String authToken);
 }

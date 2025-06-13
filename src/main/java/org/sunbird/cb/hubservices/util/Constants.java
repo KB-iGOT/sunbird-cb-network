@@ -65,6 +65,23 @@ public class Constants {
 	public static final String TABLE_USER = "user";
 	public static final String CHANNEL = "channel";
 	public static final String FULL_NAME = "fullName";
+	public static final String FROM_USER = "fromUser";
+	public static final String TO_USER = "toUser";
+	public static final String DOT_SEPARATOR = ".";
+	public static final String SHA_256_WITH_RSA = "SHA256withRSA";
+	public static final String ACCESS_TOKEN_PUBLICKEY_BASEPATH = "accesstoken.publickey.basepath";
+	public static final String _UNAUTHORIZED = "Unauthorized";
+	public static final String SUB = "sub";
+	public static final String SSO_REALM = "sso.realm";
+	public static final String SSO_URL = "sso.url";
+	public static final String ACCESS_TOKEN_IS_EXPIRED = "Access token is expired";
+	public static final String ACCESS_TOKEN_VALIDATION_FAILED = "Access token validation is failed";
+	public static final String X_AUTH_TOKEN = "x-authenticated-user-token";
+	public static final String USER_ID_RQST = "userId";
+	public static final String API_VERSION_1 = "1.0";
+	public static final String SUCCESS = "success";
+	public static final String API_USER_RELATIONSHIP = "api.user.relationship";
+	public static final String OK = "OK";
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),

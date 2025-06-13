@@ -85,4 +85,6 @@ public interface IConnectionService {
 	 */
 	Map<String, String> setRelationshipProperties(ConnectionRequest request, Node from, Node to);
 
+	Map<String, String> getRelationshipBetweenUsers(String fromUserId, String toUserId);
+
 }
