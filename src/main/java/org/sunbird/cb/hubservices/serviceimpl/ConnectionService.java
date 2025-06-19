@@ -24,6 +24,8 @@ import org.sunbird.cb.hubservices.service.IConnectionService;
 import org.sunbird.cb.hubservices.service.INodeService;
 import org.sunbird.cb.hubservices.util.ConnectionProperties;
 import org.sunbird.cb.hubservices.util.Constants;
+import org.sunbird.cb.hubservices.util.notificationUtill.HelperMethodService;
+import org.sunbird.cb.hubservices.util.notificationUtill.NotificationTriggerService;
 
 @Service
 public class ConnectionService implements IConnectionService {
@@ -40,6 +42,12 @@ public class ConnectionService implements IConnectionService {
 	@Autowired
 	CassandraOperation cassandraOperation;
 
+	@Autowired
+	HelperMethodService helperMethodService;
+
+	@Autowired
+	NotificationTriggerService notificationTriggerService;
+
 	@Override
 	public Response upsert(ConnectionRequest request, String updateOperation) {
 		Response response = new Response();
@@ -54,6 +62,21 @@ public class ConnectionService implements IConnectionService {
 			try {
 				Boolean areNodesConnected = nodeService.connect(from, to, relationshipProperties);
 				if (areNodesConnected) {
+					String firstName = helperMethodService.fetchUserFirstName(request.getUserIdFrom());
+					Map<String, Object> data = new HashMap<>();
+					data.put("id", request.getUserIdFrom());
+					if (request.getStatus().equalsIgnoreCase(Constants.Status.PENDING)) {
+						notificationTriggerService.triggerNotification(Constants.SEND_CONNECTION_REQUEST, Constants.ALERT,
+								Arrays.asList(request.getUserIdTo()), firstName, data);
+					} else if (request.getStatus().equalsIgnoreCase(Constants.Status.APPROVED)) {
+						notificationTriggerService.triggerNotification(Constants.ACCEPTED_CONNECTION_REQUEST, Constants.ALERT,
+								Arrays.asList(request.getUserIdTo()), firstName, data);
+
+					} else if (request.getStatus().equalsIgnoreCase(Constants.Status.REJECTED)) {
+						notificationTriggerService.triggerNotification(Constants.REJECTED_CONNECTION_REQUEST, Constants.ALERT,
+								Arrays.asList(request.getUserIdTo()), firstName, data);
+
+					}
 					response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 					response.put(Constants.ResponseStatus.STATUS, HttpStatus.CREATED);
 				} else {
