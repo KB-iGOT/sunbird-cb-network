@@ -82,21 +82,6 @@ public class Constants {
 	public static final String SUCCESS = "success";
 	public static final String API_USER_RELATIONSHIP = "api.user.relationship";
 	public static final String OK = "OK";
-	public static final String SUB_CATEGORY = "subCategory";
-	public static final String SUB_TYPE = "subType";
-	public static final String USER_IDS = "userIds";
-	public static final String MESSAGE = "message";
-	public static final String USER_NAME = "userName";
-	public static final String PLACE_HOLDERS ="placeholders";
-	public static final String DATA = "data";
-	public static final String USER_PREFIX = "user:" ;
-	public static final String FIRST_NAME_KEY = "first_name";
-	public static final String USER_ID_KEY = "user_id";
-	public static final String SEND_CONNECTION_REQUEST = "SEND_CONNECTION_REQUEST";
-	public static final String ACCEPTED_CONNECTION_REQUEST = "ACCEPTED_CONNECTION_REQUEST";
-	public static final String REJECTED_CONNECTION_REQUEST = "REJECTED_CONNECTION_REQUEST";
-	public static final String ALERT = "ALERT";
-
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
