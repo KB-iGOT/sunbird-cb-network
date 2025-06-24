@@ -88,4 +88,14 @@ public class NodeService implements INodeService {
 			return new HashMap<>();
 		}
 	}
+
+	@Override
+	public  List<Map<String, String>> findRecommendationForUser(String userId) {
+		try {
+			return graphDao.findRecommendationForUser(userId);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching Recommendations for user %s %s", userId, e));
+			return new ArrayList<>();
+		}
+	}
 }

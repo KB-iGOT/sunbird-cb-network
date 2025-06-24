@@ -19,4 +19,5 @@ public interface INodeService {
 
 	Map<String, String> getRelationshipBetweenUsers(String fromUserId, String toUserId);
 
+	List<Map<String, String>> findRecommendationForUser(String userId);
 }

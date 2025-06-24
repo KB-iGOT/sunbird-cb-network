@@ -96,6 +96,9 @@ public class Constants {
 	public static final String ACCEPTED_CONNECTION_REQUEST = "ACCEPTED_CONNECTION_REQUEST";
 	public static final String REJECTED_CONNECTION_REQUEST = "REJECTED_CONNECTION_REQUEST";
 	public static final String ALERT = "ALERT";
+	public static final String FIND_RECOMMENDED_V2 = "/v2/find/recommended";
+	public static final String ORGANISATION_ID = "organisationId";
+	public static final String DESIGNATION = "designation";
 
 
 	public enum Graph {

@@ -18,4 +18,6 @@ public interface IGraphDao {
 			int level, int offset, int limit, List<String> attributes);
 
 	Map<String, String> getRelationshipBetweenUsers(String fromUserId, String toUserId);
+
+	List<Map<String, String>> findRecommendationForUser(String userId);
 }

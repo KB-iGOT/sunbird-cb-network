@@ -1,10 +1,6 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -268,6 +264,16 @@ public class ConnectionService implements IConnectionService {
 		} catch (Exception e) {
 			logger.error(String.format("Error fetching relationship between %s and %s : %s", fromUserId, toUserId, e));
 			return new HashMap<>();
+		}
+	}
+
+	@Override
+	public  List<Map<String, String>> findRecommendationForUser(String userId) {
+		try {
+			return nodeService.findRecommendationForUser(userId);
+		} catch (Exception e) {
+			logger.error(String.format("Error fetching Recommendations for user %s %s", userId, e));
+			return new ArrayList<>();
 		}
 	}
 }

@@ -19,4 +19,6 @@ public interface IProfileService {
 	public Response findProfileRequestedV2(String userId, int offset, int limit, Constants.DIRECTION direction);
 
 	SBApiResponse getRelationshipBetweenUsers(String toUserId, String authToken);
+
+	SBApiResponse findRecommendations(String authToken, Map<String, Object> request);
 }

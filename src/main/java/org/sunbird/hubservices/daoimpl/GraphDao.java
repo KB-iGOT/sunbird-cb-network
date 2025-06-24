@@ -332,4 +332,55 @@ public class GraphDao implements IGraphDao {
         }
         return relationshipProps;
     }
+
+    @Override
+    public List<Map<String, String>> findRecommendationForUser(String userId) {
+        Map<String, String> recommendationData;
+        List<Map<String, String>> recommendationList = null;
+        try (Session session = neo4jDriver.session()) {
+            try (Transaction transaction = session.beginTransaction()) {
+                Map<String, Object> parameters = new HashMap<>();
+                parameters.put(Constants.USER_ID, userId);
+                String orgQuery = "MATCH (u1:userv3 {userId: $userId}) " +
+                        "MATCH (u2:userv3) " +
+                        "WHERE u2.organisationId = u1.organisationId " +
+                        "AND u2.userId <> u1.userId " +
+                        "AND NOT (u1)--(u2) " +
+                        "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
+                        "u2.designation as designation";
+
+                Statement statement = new Statement(orgQuery, parameters);
+                StatementResult result = transaction.run(statement);
+                List<Record> records = result.list();
+                result.consume();
+                if (records.isEmpty()) {
+                    String designationQuery = "MATCH (u1:userv3 {userId: $userId}) " +
+                            "MATCH (u2:userv3) " +
+                            "WHERE u2.designation = u1.designation " +
+                            "AND u2.userId <> u1.userId " +
+                            "AND NOT (u1)--(u2) " +
+                            "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
+                            "u2.designation as designation";
+
+                    statement = new Statement(designationQuery, parameters);
+                    result = transaction.run(statement);
+                    records = result.list();
+                    result.consume();
+                }
+                recommendationList = new ArrayList<>();
+                for (Record record : records) {
+                    recommendationData = new HashMap<>();
+                    recommendationData.put(Constants.USER_ID, record.get(Constants.USER_ID).asString());
+                    recommendationData.put(Constants.ORGANISATION_ID, record.get(Constants.ORGANISATION_ID).asString());
+                    recommendationData.put(Constants.DESIGNATION, record.get(Constants.DESIGNATION).asString());
+                    recommendationList.add(recommendationData);
+                }
+                logger.info("Recommendations for user {} fetched successfully. Found {} recommendations",
+                        userId, recommendationList.size());
+            } catch (Exception e) {
+                logger.error("Error finding recommendations for user {}: {}", userId, e.getMessage());
+            }
+        }
+        return recommendationList;
+    }
 }

@@ -113,4 +113,27 @@ public class ProfileService implements IProfileService {
 			return response;
 		}
 	}
+
+	@Override
+	public SBApiResponse findRecommendations(String authToken, Map<String, Object> request) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_USER_RELATIONSHIP);
+		String userId = "";
+		try {
+			userId = accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
+			if (StringUtils.isEmpty(userId)) {
+				return response;
+			}
+			List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId);
+			response.getResult().put(Constants.RESPONSE,recommendationUsersList);
+			response.getParams().setStatus(Constants.OK);
+			response.setResponseCode(HttpStatus.OK);
+			return response;
+		} catch (Exception e) {
+			logger.error(String.format("Error while fetching recommendation for the user %s %s", userId, e));
+			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+			response.getParams().setErrmsg("Error while fetching recommendation for the user");
+			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			return response;
+		}
+	}
 }
