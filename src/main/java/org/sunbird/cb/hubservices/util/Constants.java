@@ -100,6 +100,7 @@ public class Constants {
 	public static final String ORGANISATION_ID = "organisationId";
 	public static final String DESIGNATION = "designation";
 	public static final String SIZE = "size";
+	public static final String API_GET_USER_RECOMMENDATIONS_V2 = "api.user.recommendations.v2";
 
 
 	public enum Graph {
