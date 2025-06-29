@@ -123,7 +123,7 @@ public class ProfileService implements IProfileService {
 	 */
 	@Override
 	public SBApiResponse findRecommendations(String authToken, Map<String, Object> request) {
-		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_USER_RELATIONSHIP);
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_GET_USER_RECOMMENDATIONS_V2);
 		String userId = "";
 		try {
 			userId = accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
@@ -143,7 +143,7 @@ public class ProfileService implements IProfileService {
 			MultiSearch mSearchRequest = new MultiSearch();
 			mSearchRequest.setOffset((Integer) request.get(Constants.OFFSET));
 			mSearchRequest.setSize((Integer) request.get(Constants.SIZE));
-			ArrayNode enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, Collections.singletonList("81d810fd-61ee-4f46-b4eb-ae039827d95a")	);
+			ArrayNode enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds);
 			response.getResult().put(Constants.RESPONSE, enrichedUserMap);
 			response.getParams().setStatus(Constants.OK);
 			response.setResponseCode(HttpStatus.OK);
