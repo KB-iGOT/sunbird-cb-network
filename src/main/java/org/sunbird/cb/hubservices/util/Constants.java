@@ -101,6 +101,8 @@ public class Constants {
 	public static final String DESIGNATION = "designation";
 	public static final String SIZE = "size";
 	public static final String API_GET_USER_RECOMMENDATIONS_V2 = "api.user.recommendations.v2";
+	public static final String FIND_RECOMMENDED_MENTOR = "/find/recommended/mentors";
+	public static final String API_USER_MENTOR_RECOMMENDATIONS = "api.user.get.mentor.recommendations";
 
 
 	public enum Graph {

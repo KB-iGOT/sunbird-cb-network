@@ -27,4 +27,13 @@ public interface IGraphDao {
 	 * @return A list of maps, each representing a recommendation with relevant details.
 	 */
 	List<Map<String, String>> findRecommendationForUser(String userId, Map<String, Object> request);
+
+	/**
+	 * Finds recommendations for mentors based on the provided request parameters.
+	 *
+	 * @param userId The ID of the user for whom mentor recommendations are to be found.
+	 * @param request A map containing request parameters for finding mentor recommendations.
+	 * @return A list of maps, each representing a mentor recommendation with relevant details.
+	 */
+	List<Map<String, String>> findRecommendationForMentors(String userId, Map<String, Object> request);
 }

@@ -283,4 +283,21 @@ public class ConnectionService implements IConnectionService {
 			return new ArrayList<>();
 		}
 	}
+
+    /**
+     * Fetches recommendations for mentors based on the provided request parameters.
+     *
+     * @param userId  The ID of the user for whom mentor recommendations are to be fetched.
+     * @param request A map containing request parameters for fetching mentor recommendations.
+     * @return A list of maps containing mentor recommendation data for the user.
+     */
+    @Override
+    public List<Map<String, String>> findRecommendationForMentors(String userId, Map<String, Object> request) {
+        try {
+            return nodeService.findRecommendationForMentors(userId, request);
+        } catch (Exception e) {
+            logger.error(String.format("Error fetching Recommendations for user %s %s", userId, e));
+            return new ArrayList<>();
+        }
+    }
 }

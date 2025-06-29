@@ -480,4 +480,64 @@ public class GraphDao implements IGraphDao {
                 "SKIP $offset LIMIT $size";
         return new Statement(orgQuery, parameters);
     }
+
+    /**
+     * Finds recommendations for mentors based on the provided request parameters.
+     *
+     * @param userId  The ID of the user for whom mentor recommendations are to be found.
+     * @param request A map containing request parameters for finding mentor recommendations.
+     * @return A list of maps, each representing a mentor recommendation with relevant details.
+     */
+    @Override
+    public List<Map<String, String>> findRecommendationForMentors(String userId, Map<String, Object> request) {
+        Map<String, String> recommendationData;
+        List<Map<String, String>> recommendationList = null;
+        try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put(Constants.USER_ID, userId);
+            int size = (Integer) request.get(Constants.SIZE);
+            int offset = Math.max(0, (Integer) request.get(Constants.OFFSET));
+            if (offset != 0) {
+                offset = (offset * size) + 1;
+            }
+            parameters.put(Constants.SIZE, size);
+            parameters.put(Constants.OFFSET, offset);
+            Statement statement = getStatementForRecommendedMentorsInSameOrg(parameters);
+            StatementResult result = transaction.run(statement);
+            List<Record> recordsForRecommendedMentors = result.list();
+            result.consume();
+            if (!CollectionUtils.isEmpty(recordsForRecommendedMentors)) {
+                recommendationList = new ArrayList<>();
+                for (Record record : recordsForRecommendedMentors) {
+                    recommendationData = new HashMap<>();
+                    recommendationData.put(Constants.USER_ID, record.get(Constants.USER_ID).asString());
+                    recommendationData.put(Constants.ORGANISATION_ID, record.get(Constants.ORGANISATION_ID).asString());
+                    recommendationData.put(Constants.DESIGNATION, record.get(Constants.DESIGNATION).asString());
+                    recommendationList.add(recommendationData);
+                }
+                logger.info("Recommendations for user {} fetched successfully. Found {} recommendations",
+                        userId, recommendationList.size());
+            }
+            return recommendationList;
+        }
+    }
+
+    /**
+     * Constructs a Neo4j statement to find recommended mentors in the same organization.
+     *
+     * @param parameters A map containing userId, offset, and size for pagination.
+     * @return A Neo4j Statement object.
+     */
+    private Statement getStatementForRecommendedMentorsInSameOrg(Map<String, Object> parameters) {
+        String recommendedMentorsQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
+                "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
+                "WHERE u2.organisationId = u1.organisationId " +
+                "AND u2.userId <> u1.userId " +
+                "AND NOT (u1)--(u2) " +
+                "AND u2.role = 'mentor' " +
+                "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
+                "u2.designation as designation " +
+                "SKIP $offset LIMIT $size";
+        return new Statement(recommendedMentorsQuery, parameters);
+    }
 }

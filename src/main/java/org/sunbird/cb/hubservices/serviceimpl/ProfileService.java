@@ -134,20 +134,7 @@ public class ProfileService implements IProfileService {
 				return response;
 			}
 			List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
-			List<String> connectionUserIds = new ArrayList<>();
-			recommendationUsersList.forEach(map -> {
-				if (map.containsKey(Constants.USER_ID)) {
-					connectionUserIds.add(map.get(Constants.USER_ID));
-				}
-			});
-			MultiSearch mSearchRequest = new MultiSearch();
-			mSearchRequest.setOffset((Integer) request.get(Constants.OFFSET));
-			mSearchRequest.setSize((Integer) request.get(Constants.SIZE));
-			ArrayNode enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds);
-			response.getResult().put(Constants.RESPONSE, enrichedUserMap);
-			response.getParams().setStatus(Constants.OK);
-			response.setResponseCode(HttpStatus.OK);
-			return response;
+			return enrichUserInformation(request, recommendationUsersList, response);
 		} catch (Exception e) {
 			logger.error(String.format("Error while fetching recommendation for the user %s %s", userId, e));
 			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
@@ -188,5 +175,64 @@ public class ProfileService implements IProfileService {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * This method fetches recommendations for mentors based on the Users Organisation.
+	 * It validates the access token, checks pagination parameters, and retrieves
+	 * recommended mentors from the connection service.
+	 *
+	 * @param authToken The authentication token of the user.
+	 * @param request   The request map containing pagination parameters.
+	 * @return SBApiResponse containing the list of recommended mentors or an error message.
+	 */
+	@Override
+	public SBApiResponse findRecommendedMentors(String authToken, Map<String, Object> request) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_USER_MENTOR_RECOMMENDATIONS);
+		String userId = "";
+		try {
+			userId = accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
+			if (StringUtils.isEmpty(userId)) {
+				return response;
+			}
+			if (!validatePaginationParams(request, response)) {
+				return response;
+			}
+			List<Map<String, String>> recommendationMentorsList = connectionService.findRecommendationForMentors(userId, request);
+			return enrichUserInformation(request, recommendationMentorsList, response);
+		} catch (Exception e) {
+			logger.error(String.format("Error while fetching recommendation for the user %s %s", userId, e));
+			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+			response.getParams().setErrmsg("Error while fetching recommendation for the user");
+			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			return response;
+		}
+
+	}
+
+	/**
+	 * Enriches user information by fetching additional details from Redis based on the user IDs
+	 * present in the provided userList. It constructs a MultiSearch request and retrieves user info.
+	 *
+	 * @param request  The request map containing pagination parameters.
+	 * @param userList The list of users to enrich.
+	 * @param response The SBApiResponse to populate with enriched user information.
+	 * @return SBApiResponse containing enriched user information.
+	 */
+	private SBApiResponse enrichUserInformation(Map<String, Object> request, List<Map<String, String>> userList, SBApiResponse response) {
+		List<String> connectionUserIds = new ArrayList<>();
+		userList.forEach(map -> {
+			if (map.containsKey(Constants.USER_ID)) {
+				connectionUserIds.add(map.get(Constants.USER_ID));
+			}
+		});
+		MultiSearch mSearchRequest = new MultiSearch();
+		mSearchRequest.setOffset((Integer) request.get(Constants.OFFSET));
+		mSearchRequest.setSize((Integer) request.get(Constants.SIZE));
+		ArrayNode enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds);
+		response.getResult().put(Constants.RESPONSE, enrichedUserMap);
+		response.getParams().setStatus(Constants.OK);
+		response.setResponseCode(HttpStatus.OK);
+		return response;
 	}
 }

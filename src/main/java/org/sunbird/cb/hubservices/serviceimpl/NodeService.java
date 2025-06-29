@@ -105,4 +105,21 @@ public class NodeService implements INodeService {
 			return new ArrayList<>();
 		}
 	}
+
+	/**
+	 * Finds recommendations for mentors based on the provided request parameters.
+	 *
+	 * @param userId  The ID of the user for whom mentor recommendations are to be found.
+	 * @param request A map containing request parameters for finding mentor recommendations.
+	 * @return A list of maps, each representing a mentor recommendation with relevant details.
+	 */
+	@Override
+	public List<Map<String, String>> findRecommendationForMentors(String userId, Map<String, Object> request) {
+		try {
+			return graphDao.findRecommendationForMentors(userId, request);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching Recommendations for user %s %s", userId, e));
+			return new ArrayList<>();
+		}
+	}
 }

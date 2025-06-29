@@ -21,4 +21,6 @@ public interface IProfileService {
 	SBApiResponse getRelationshipBetweenUsers(String toUserId, String authToken);
 
 	SBApiResponse findRecommendations(String authToken, Map<String, Object> request);
+
+	SBApiResponse findRecommendedMentors(String authToken, Map<String, Object> request);
 }

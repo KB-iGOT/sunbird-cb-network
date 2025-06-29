@@ -94,4 +94,12 @@ public interface IConnectionService {
 	 * @return List of recommendations
 	 */
 	List<Map<String, String>> findRecommendationForUser(String userId, Map<String, Object> request);
+
+	/**
+	 * Find recommendations for mentors based on the request parameters
+	 * @param userId - User ID for which mentor recommendations are to be fetched
+	 * @param request - Map containing request parameters such as offset, limit, etc.
+	 * @return List of mentor recommendations
+	 */
+	List<Map<String, String>> findRecommendationForMentors(String userId, Map<String, Object> request);
 }
