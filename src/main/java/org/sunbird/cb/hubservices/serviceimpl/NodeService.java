@@ -89,10 +89,17 @@ public class NodeService implements INodeService {
 		}
 	}
 
+	/**
+	 * Finds recommendations for a user based on the provided request parameters.
+	 *
+	 * @param userId The ID of the user for whom recommendations are to be found.
+	 * @param request A map containing request parameters for finding recommendations.
+	 * @return A list of maps, each representing a recommendation with relevant details.
+	 */
 	@Override
-	public  List<Map<String, String>> findRecommendationForUser(String userId) {
+	public  List<Map<String, String>> findRecommendationForUser(String userId, Map<String, Object> request) {
 		try {
-			return graphDao.findRecommendationForUser(userId);
+			return graphDao.findRecommendationForUser(userId,request);
 		} catch (GraphException e) {
 			logger.error(String.format("Error fetching Recommendations for user %s %s", userId, e));
 			return new ArrayList<>();

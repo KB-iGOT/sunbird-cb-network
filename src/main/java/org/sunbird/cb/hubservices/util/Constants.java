@@ -99,6 +99,7 @@ public class Constants {
 	public static final String FIND_RECOMMENDED_V2 = "/v2/find/recommended";
 	public static final String ORGANISATION_ID = "organisationId";
 	public static final String DESIGNATION = "designation";
+	public static final String SIZE = "size";
 
 
 	public enum Graph {

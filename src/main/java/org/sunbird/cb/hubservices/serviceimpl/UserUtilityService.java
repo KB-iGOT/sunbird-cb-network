@@ -100,25 +100,7 @@ public class UserUtilityService implements IUserUtility {
             searchQueryMap.put("fields", includeFields);
             request.setRequest(searchQueryMap);
             tags.add(sRequest.getField());
-
-            // Hit user search Api
-            ResponseEntity<?> responseEntity = ProfileUtils.getResponseEntity(connectionProperties.getLearnerServiceHost(), connectionProperties.getUserSearchEndPoint(), request);
-            JsonNode node = mapper.convertValue(responseEntity.getBody(), JsonNode.class);
-            ArrayNode nodes = (ArrayNode) node.get("result").get("response").get("content");
-            for (JsonNode n : nodes) {
-                if (!connectionIdsToExclude.contains(n.get(ProfileUtils.Profile.USER_ID).asText())) {
-                    JsonNode profileDetails = n.get(ProfileUtils.Profile.PROFILE_DETAILS);
-                    if (!ObjectUtils.isEmpty(profileDetails.get(Constants.VERIFIED_KARMAYOGI))) {
-                        ((ObjectNode) profileDetails).put(Constants.VERIFIED_KARMAYOGI, profileDetails.get(Constants.VERIFIED_KARMAYOGI).asBoolean());
-                    } else {
-                        ((ObjectNode) profileDetails).put(Constants.VERIFIED_KARMAYOGI, Boolean.FALSE);
-                    }
-                    ((ObjectNode) profileDetails).put(ProfileUtils.Profile.USER_ID, n.get(ProfileUtils.Profile.USER_ID).asText());
-                    ((ObjectNode) profileDetails).put(ProfileUtils.Profile.ID, n.get(ProfileUtils.Profile.USER_ID).asText());
-                    ((ObjectNode) profileDetails).put(ProfileUtils.Profile.AT_ID, n.get(ProfileUtils.Profile.USER_ID).asText());
-                    arrayRes.add(n.get(ProfileUtils.Profile.PROFILE_DETAILS));
-                }
-            }
+            fetchUserDetailsFromLearnerService(connectionIdsToExclude, request, arrayRes);
         } catch (Exception e) {
             logger.error(String.format("Error while connecting the nodes! error : %s", e));
         }
@@ -153,5 +135,56 @@ public class UserUtilityService implements IUserUtility {
             logger.error(String.format("Error while connecting the nodes! error : %s", e));
         }
         return tagRes;
+    }
+
+    @Override
+    public ArrayNode getUserInfoFromRedisV2(MultiSearch multiSearch, List<String> connectionUserIds) {
+        List<String> includeFields = ProfileUtils.getUserDefaultFields();
+        Map<String, Object> tagRes = new HashMap<>();
+        ArrayNode arrayRes = getUserInfoFromSearchBasedOnUserIds(multiSearch, includeFields, connectionUserIds);
+        logger.info("user search result :: {}", new PrettyPrintingMap<>(tagRes));
+        return arrayRes;
+    }
+
+    private ArrayNode getUserInfoFromSearchBasedOnUserIds(MultiSearch multiSearch, List<String> includeFields, List<String> connectionUserIds) {
+        ArrayNode arrayRes = JsonNodeFactory.instance.arrayNode();
+        try {
+            Request request = new Request();
+            Map<String, Object> searchQueryMap = new HashMap<>();
+            Map<String, Object> additionalProperties = new HashMap<>();
+            additionalProperties.put("userId", connectionUserIds);
+            additionalProperties.put("status", 1);
+            searchQueryMap.put("query", "");
+            searchQueryMap.put("filters", additionalProperties);
+            searchQueryMap.put("offset", multiSearch.getOffset());
+            searchQueryMap.put("limit", getLimitRequest(multiSearch.getSize()));
+            searchQueryMap.put("fields", includeFields);
+            request.setRequest(searchQueryMap);
+            fetchUserDetailsFromLearnerService(connectionUserIds, request, arrayRes);
+        } catch (Exception e) {
+            logger.error(String.format("Error while connecting the nodes! error : %s", e));
+        }
+        return arrayRes;
+    }
+
+
+    private void fetchUserDetailsFromLearnerService(List<String> connectionUserIds, Request request, ArrayNode arrayRes) {
+        ResponseEntity<?> responseEntity = ProfileUtils.getResponseEntity(connectionProperties.getLearnerServiceHost(), connectionProperties.getUserSearchEndPoint(), request);
+        JsonNode node = mapper.convertValue(responseEntity.getBody(), JsonNode.class);
+        ArrayNode nodes = (ArrayNode) node.get("result").get("response").get("content");
+        for (JsonNode n : nodes) {
+            if (connectionUserIds.contains(n.get(ProfileUtils.Profile.USER_ID).asText())) {
+                JsonNode profileDetails = n.get(ProfileUtils.Profile.PROFILE_DETAILS);
+                if (!ObjectUtils.isEmpty(profileDetails.get(Constants.VERIFIED_KARMAYOGI))) {
+                    ((ObjectNode) profileDetails).put(Constants.VERIFIED_KARMAYOGI, profileDetails.get(Constants.VERIFIED_KARMAYOGI).asBoolean());
+                } else {
+                    ((ObjectNode) profileDetails).put(Constants.VERIFIED_KARMAYOGI, Boolean.FALSE);
+                }
+                ((ObjectNode) profileDetails).put(ProfileUtils.Profile.USER_ID, n.get(ProfileUtils.Profile.USER_ID).asText());
+                ((ObjectNode) profileDetails).put(ProfileUtils.Profile.ID, n.get(ProfileUtils.Profile.USER_ID).asText());
+                ((ObjectNode) profileDetails).put(ProfileUtils.Profile.AT_ID, n.get(ProfileUtils.Profile.USER_ID).asText());
+                arrayRes.add(n.get(ProfileUtils.Profile.PROFILE_DETAILS));
+            }
+        }
     }
 }

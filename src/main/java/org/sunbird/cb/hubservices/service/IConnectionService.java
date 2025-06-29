@@ -87,5 +87,11 @@ public interface IConnectionService {
 
 	Map<String, String> getRelationshipBetweenUsers(String fromUserId, String toUserId);
 
-	List<Map<String, String>> findRecommendationForUser(String userId);
+	/**
+	 * Find recommendations for a user based on the request parameters
+	 * @param userId - User ID for which recommendations are to be fetched
+	 * @param request - Map containing request parameters such as offset, limit, etc.
+	 * @return List of recommendations
+	 */
+	List<Map<String, String>> findRecommendationForUser(String userId, Map<String, Object> request);
 }

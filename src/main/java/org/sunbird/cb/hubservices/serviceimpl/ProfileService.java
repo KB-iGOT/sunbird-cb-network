@@ -1,5 +1,6 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.commons.collections4.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,10 +19,7 @@ import org.sunbird.cb.hubservices.service.IProfileService;
 import org.sunbird.cb.hubservices.service.IUserUtility;
 import org.sunbird.cb.hubservices.util.Constants;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class ProfileService implements IProfileService {
@@ -114,6 +112,15 @@ public class ProfileService implements IProfileService {
 		}
 	}
 
+	/**
+	 * This method fetches recommendations for the user based on their connections.
+	 * It validates the access token, checks pagination parameters, and retrieves
+	 * recommended users from the connection service.
+	 *
+	 * @param authToken The authentication token of the user.
+	 * @param request   The request map containing pagination parameters.
+	 * @return SBApiResponse containing the list of recommended users or an error message.
+	 */
 	@Override
 	public SBApiResponse findRecommendations(String authToken, Map<String, Object> request) {
 		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_USER_RELATIONSHIP);
@@ -123,8 +130,21 @@ public class ProfileService implements IProfileService {
 			if (StringUtils.isEmpty(userId)) {
 				return response;
 			}
-			List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId);
-			response.getResult().put(Constants.RESPONSE,recommendationUsersList);
+			if (!validatePaginationParams(request, response)) {
+				return response;
+			}
+			List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
+			List<String> connectionUserIds = new ArrayList<>();
+			recommendationUsersList.forEach(map -> {
+				if (map.containsKey(Constants.USER_ID)) {
+					connectionUserIds.add(map.get(Constants.USER_ID));
+				}
+			});
+			MultiSearch mSearchRequest = new MultiSearch();
+			mSearchRequest.setOffset((Integer) request.get(Constants.OFFSET));
+			mSearchRequest.setSize((Integer) request.get(Constants.SIZE));
+			ArrayNode enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, Collections.singletonList("81d810fd-61ee-4f46-b4eb-ae039827d95a")	);
+			response.getResult().put(Constants.RESPONSE, enrichedUserMap);
 			response.getParams().setStatus(Constants.OK);
 			response.setResponseCode(HttpStatus.OK);
 			return response;
@@ -135,5 +155,38 @@ public class ProfileService implements IProfileService {
 			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
 			return response;
 		}
+	}
+
+	/**
+	 * Validates the pagination parameters in the request map.
+	 * Checks if the request is not empty, contains 'offset' and 'size',
+	 * and ensures they are integers.
+	 *
+	 * @param request  The request map containing pagination parameters.
+	 * @param response The SBApiResponse to set error messages and status.
+	 * @return true if validation passes, false otherwise.
+	 */
+	private boolean validatePaginationParams(Map<String, Object> request, SBApiResponse response) {
+		if (MapUtils.isEmpty(request)) {
+			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
+			response.getParams().setErrmsg("Request body cannot be null");
+			response.setResponseCode(HttpStatus.BAD_REQUEST);
+			return false;
+		}
+		if (!request.containsKey("offset") || !request.containsKey("size")) {
+			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
+			response.getParams().setErrmsg("Missing required parameters: offset and size");
+			response.setResponseCode(HttpStatus.BAD_REQUEST);
+			return false;
+		}
+		Object offsetObj = request.get("offset");
+		Object sizeObj = request.get("size");
+		if (!(offsetObj instanceof Integer) || !(sizeObj instanceof Integer)) {
+			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
+			response.getParams().setErrmsg("Parameters offset and size must be integers");
+			response.setResponseCode(HttpStatus.BAD_REQUEST);
+			return false;
+		}
+		return true;
 	}
 }

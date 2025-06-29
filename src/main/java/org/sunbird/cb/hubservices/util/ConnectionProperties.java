@@ -90,6 +90,9 @@ public class ConnectionProperties {
 	@Value("${sunbird.user.read.endpoint}")
 	private String userReadEndPoint;
 
+	@Value("${user.label.v3}")
+	private String userLabelV3;
+
 	public String getEsProfileIndex() {
 		return esProfileIndex;
 	}
@@ -200,5 +203,10 @@ public class ConnectionProperties {
 
 	public int getMaxNodeSize() {
 		return maxNodeSize;
+	}
+
+
+	public String getUserLabelV3() {
+		return userLabelV3;
 	}
 }

@@ -267,10 +267,17 @@ public class ConnectionService implements IConnectionService {
 		}
 	}
 
+	/**
+	 * Fetches recommendations for a user based on the provided request parameters.
+	 *
+	 * @param userId   The ID of the user for whom recommendations are to be fetched.
+	 * @param request  A map containing request parameters for fetching recommendations.
+	 * @return A list of maps containing recommendation data for the user.
+	 */
 	@Override
-	public  List<Map<String, String>> findRecommendationForUser(String userId) {
+	public  List<Map<String, String>> findRecommendationForUser(String userId, Map<String, Object> request) {
 		try {
-			return nodeService.findRecommendationForUser(userId);
+			return nodeService.findRecommendationForUser(userId,request);
 		} catch (Exception e) {
 			logger.error(String.format("Error fetching Recommendations for user %s %s", userId, e));
 			return new ArrayList<>();

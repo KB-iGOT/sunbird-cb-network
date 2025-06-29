@@ -24,6 +24,7 @@ import org.springframework.util.CollectionUtils;
 import org.sunbird.cb.hubservices.exception.ErrorCode;
 import org.sunbird.cb.hubservices.exception.GraphException;
 import org.sunbird.cb.hubservices.model.Node;
+import org.sunbird.cb.hubservices.util.ConnectionProperties;
 import org.sunbird.cb.hubservices.util.Constants;
 import org.sunbird.hubservices.dao.IGraphDao;
 
@@ -42,6 +43,9 @@ public class GraphDao implements IGraphDao {
     public GraphDao(String label) {
         this.label = label;
     }
+
+    @Autowired
+    ConnectionProperties connectionProperties;
 
     @Override
     public Boolean upsertNode(Node node) throws Exception {
@@ -333,42 +337,23 @@ public class GraphDao implements IGraphDao {
         return relationshipProps;
     }
 
+    /**
+     * Finds recommendations for a user based on the provided request parameters.
+     *
+     * @param userId  The ID of the user for whom recommendations are to be found.
+     * @param request A map containing request parameters for finding recommendations.
+     * @return A list of maps, each representing a recommendation with relevant details.
+     */
     @Override
-    public List<Map<String, String>> findRecommendationForUser(String userId) {
+    public List<Map<String, String>> findRecommendationForUser(String userId, Map<String, Object> request) {
         Map<String, String> recommendationData;
         List<Map<String, String>> recommendationList = null;
         try (Session session = neo4jDriver.session()) {
-            try (Transaction transaction = session.beginTransaction()) {
-                Map<String, Object> parameters = new HashMap<>();
-                parameters.put(Constants.USER_ID, userId);
-                String orgQuery = "MATCH (u1:userv3 {userId: $userId}) " +
-                        "MATCH (u2:userv3) " +
-                        "WHERE u2.organisationId = u1.organisationId " +
-                        "AND u2.userId <> u1.userId " +
-                        "AND NOT (u1)--(u2) " +
-                        "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                        "u2.designation as designation";
-
-                Statement statement = new Statement(orgQuery, parameters);
-                StatementResult result = transaction.run(statement);
-                List<Record> records = result.list();
-                result.consume();
-                if (records.isEmpty()) {
-                    String designationQuery = "MATCH (u1:userv3 {userId: $userId}) " +
-                            "MATCH (u2:userv3) " +
-                            "WHERE u2.designation = u1.designation " +
-                            "AND u2.userId <> u1.userId " +
-                            "AND NOT (u1)--(u2) " +
-                            "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                            "u2.designation as designation";
-
-                    statement = new Statement(designationQuery, parameters);
-                    result = transaction.run(statement);
-                    records = result.list();
-                    result.consume();
-                }
+            List<Record> recordsFromSameOrg = fetchRecommendationFromSameOrg(userId, request, session);
+            List<Record> recordsComplete = fetchRecommendationDifferentOrgSameDesignations(userId, request, session, recordsFromSameOrg);
+            if (!CollectionUtils.isEmpty(recordsComplete)) {
                 recommendationList = new ArrayList<>();
-                for (Record record : records) {
+                for (Record record : recordsComplete) {
                     recommendationData = new HashMap<>();
                     recommendationData.put(Constants.USER_ID, record.get(Constants.USER_ID).asString());
                     recommendationData.put(Constants.ORGANISATION_ID, record.get(Constants.ORGANISATION_ID).asString());
@@ -377,10 +362,122 @@ public class GraphDao implements IGraphDao {
                 }
                 logger.info("Recommendations for user {} fetched successfully. Found {} recommendations",
                         userId, recommendationList.size());
-            } catch (Exception e) {
-                logger.error("Error finding recommendations for user {}: {}", userId, e.getMessage());
             }
         }
         return recommendationList;
+    }
+
+    /**
+     * Fetches recommendations for a user from different organizations with the same designations.
+     *
+     * @param userId                The ID of the user for whom recommendations are to be fetched.
+     * @param request               The request parameters containing pagination details.
+     * @param session               The Neo4j session to execute the query.
+     * @param recordsFromSameOrg    List of records from the same organization, if any.
+     * @return A list of records containing userId, organisationId, and designation.
+     */
+    private List<Record> fetchRecommendationDifferentOrgSameDesignations(String userId, Map<String, Object> request, Session session, List<Record> recordsFromSameOrg) {
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put(Constants.USER_ID, userId);
+        String designationQuery;
+        try (Transaction transaction = session.beginTransaction()) {
+            if (recordsFromSameOrg.isEmpty()) {
+                int size = (Integer) request.get(Constants.SIZE);
+                int offset = Math.max(0, (Integer) request.get(Constants.OFFSET));
+                if (offset != 0) {
+                    offset = (offset * size) + 1;
+                }
+                parameters.put(Constants.SIZE, size);
+                parameters.put(Constants.OFFSET, offset);
+                designationQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
+                        "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
+                        "WHERE u2.designation = u1.designation " +
+                        "AND u2.userId <> u1.userId " +
+                        "AND NOT (u1)--(u2) " +
+                        "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
+                        "u2.designation as designation " +
+                        "SKIP $offset LIMIT $size";
+            } else {
+                int existingRecordsSize = recordsFromSameOrg.size();
+                int size = (Integer) request.get(Constants.SIZE) - existingRecordsSize;
+                if (size != 0) {
+                    List<String> foundUserIds = new ArrayList<>();
+                    for (Record record : recordsFromSameOrg) {
+                        foundUserIds.add(record.get(Constants.USER_ID).asString());
+                    }
+                    parameters.put(Constants.SIZE, size);
+                    parameters.put(Constants.OFFSET, 1);
+                    parameters.put("foundUsers", foundUserIds);
+                    designationQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
+                            "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
+                            "WHERE u2.designation = u1.designation " +
+                            "AND u2.userId <> u1.userId " +
+                            "AND NOT (u1)--(u2) " +
+                            "AND NOT u2.userId IN $foundUsers " +
+                            "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
+                            "u2.designation as designation " +
+                            "SKIP $offset LIMIT $size";
+                } else {
+                    return recordsFromSameOrg;
+                }
+            }
+            Statement statement = new Statement(designationQuery, parameters);
+            StatementResult result = transaction.run(statement);
+            List<Record> newRecords = result.list();
+            recordsFromSameOrg.addAll(newRecords);
+            result.consume();
+            return recordsFromSameOrg;
+        } catch (Exception e) {
+            logger.error("Error finding recommendations for user {}: {}", userId, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Fetches recommendations for a user from the same organization.
+     *
+     * @param userId   The ID of the user for whom recommendations are to be fetched.
+     * @param request  The request parameters containing pagination details.
+     * @param session  The Neo4j session to execute the query.
+     * @return A list of records containing userId, organisationId, and designation.
+     */
+    private List<Record> fetchRecommendationFromSameOrg(String userId, Map<String, Object> request, Session session) {
+        try (Transaction transaction = session.beginTransaction()) {
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put(Constants.USER_ID, userId);
+            int size = (Integer) request.get(Constants.SIZE);
+            int offset = Math.max(0, (Integer) request.get(Constants.OFFSET));
+            parameters.put(Constants.SIZE, size);
+            if (offset != 0) {
+                offset = (offset * size) + 1;
+            }
+            parameters.put(Constants.OFFSET, offset);
+            Statement statement = getStatementForRecommendationFromSameOrg(parameters);
+            StatementResult result = transaction.run(statement);
+            List<Record> recordsFromSameOrg = result.list();
+            result.consume();
+            return recordsFromSameOrg;
+        } catch (Exception e) {
+            logger.error("Error finding recommendations for user {}: {}", userId, e.getMessage());
+        }
+        return new ArrayList<>();
+    }
+
+    /**
+     * Constructs a Neo4j statement to find recommendations for a user from the same organization.
+     *
+     * @param parameters A map containing userId, offset, and size for pagination.
+     * @return A Neo4j Statement object.
+     */
+    private Statement getStatementForRecommendationFromSameOrg(Map<String, Object> parameters) {
+        String orgQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
+                "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
+                "WHERE u2.organisationId = u1.organisationId " +
+                "AND u2.userId <> u1.userId " +
+                "AND NOT (u1)--(u2) " +
+                "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
+                "u2.designation as designation " +
+                "SKIP $offset LIMIT $size";
+        return new Statement(orgQuery, parameters);
     }
 }
