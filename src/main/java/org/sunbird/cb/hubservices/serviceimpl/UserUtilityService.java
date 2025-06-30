@@ -183,6 +183,8 @@ public class UserUtilityService implements IUserUtility {
                 ((ObjectNode) profileDetails).put(ProfileUtils.Profile.USER_ID, n.get(ProfileUtils.Profile.USER_ID).asText());
                 ((ObjectNode) profileDetails).put(ProfileUtils.Profile.ID, n.get(ProfileUtils.Profile.USER_ID).asText());
                 ((ObjectNode) profileDetails).put(ProfileUtils.Profile.AT_ID, n.get(ProfileUtils.Profile.USER_ID).asText());
+                ((ObjectNode) profileDetails).put(ProfileUtils.Profile.ORGANISATIONS,n.get(Constants.ORGANISATIONS).asText());
+                ((ObjectNode) profileDetails).put(ProfileUtils.Profile.PROFILE_IMAGE_URL,profileDetails.get(Constants.PROFILE_IMAGE_URL).asText());
                 arrayRes.add(n.get(ProfileUtils.Profile.PROFILE_DETAILS));
             }
         }

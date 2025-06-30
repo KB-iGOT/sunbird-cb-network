@@ -1,5 +1,7 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.commons.collections4.MapUtils;
 import org.slf4j.Logger;
@@ -7,7 +9,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
+import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
 import org.sunbird.cb.hubservices.common.auth.AccessTokenValidator;
 import org.sunbird.cb.hubservices.common.util.ProjectUtil;
 import org.sunbird.cb.hubservices.exception.ApplicationException;
@@ -18,7 +22,9 @@ import org.sunbird.cb.hubservices.service.IConnectionService;
 import org.sunbird.cb.hubservices.service.IProfileService;
 import org.sunbird.cb.hubservices.service.IUserUtility;
 import org.sunbird.cb.hubservices.util.Constants;
+import org.sunbird.cb.hubservices.util.NetworkServerProperties;
 
+import java.io.IOException;
 import java.util.*;
 
 @Service
@@ -35,6 +41,15 @@ public class ProfileService implements IProfileService {
 
 	@Autowired
 	AccessTokenValidator accessTokenValidator;
+
+	@Autowired
+	RedisCacheMgr redisCacheMgr;
+
+	@Autowired
+	NetworkServerProperties networkServerProperties;
+
+	@Autowired
+	ObjectMapper mapper;
 
 	@Override
 	public Response findCommonProfileV2(String userId, int offset, int limit) {
@@ -134,7 +149,7 @@ public class ProfileService implements IProfileService {
 				return response;
 			}
 			List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
-			return enrichUserInformation(request, recommendationUsersList, response);
+			return enrichUserInformation(request, recommendationUsersList, response,userId,Constants.USERS);
 		} catch (Exception e) {
 			logger.error(String.format("Error while fetching recommendation for the user %s %s", userId, e));
 			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
@@ -199,7 +214,7 @@ public class ProfileService implements IProfileService {
 				return response;
 			}
 			List<Map<String, String>> recommendationMentorsList = connectionService.findRecommendationForMentors(userId, request);
-			return enrichUserInformation(request, recommendationMentorsList, response);
+			return enrichUserInformation(request, recommendationMentorsList, response,userId,Constants.MENTORS);
 		} catch (Exception e) {
 			logger.error(String.format("Error while fetching recommendation for the user %s %s", userId, e));
 			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
@@ -219,17 +234,35 @@ public class ProfileService implements IProfileService {
 	 * @param response The SBApiResponse to populate with enriched user information.
 	 * @return SBApiResponse containing enriched user information.
 	 */
-	private SBApiResponse enrichUserInformation(Map<String, Object> request, List<Map<String, String>> userList, SBApiResponse response) {
+	private SBApiResponse enrichUserInformation(Map<String, Object> request, List<Map<String, String>> userList, SBApiResponse response,String userId, String type) {
 		List<String> connectionUserIds = new ArrayList<>();
-		userList.forEach(map -> {
-			if (map.containsKey(Constants.USER_ID)) {
-				connectionUserIds.add(map.get(Constants.USER_ID));
+		ArrayNode enrichedUserMap;
+		String userInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
+		if (!ObjectUtils.isEmpty(userInformation)) {
+			JsonNode jsonNode;
+			try {
+				jsonNode = mapper.readTree(userInformation);
+			} catch (IOException e) {
+				logger.error("Error reading user information from Redis cache", e);
+				response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+				response.getResult().put(Constants.RESPONSE, "Error reading user information from cache");
+				response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+				return response;
 			}
-		});
-		MultiSearch mSearchRequest = new MultiSearch();
-		mSearchRequest.setOffset((Integer) request.get(Constants.OFFSET));
-		mSearchRequest.setSize((Integer) request.get(Constants.SIZE));
-		ArrayNode enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds);
+			enrichedUserMap = (ArrayNode) jsonNode;
+		} else {
+			userList.forEach(map -> {
+				if (map.containsKey(Constants.USER_ID)) {
+					connectionUserIds.add(map.get(Constants.USER_ID));
+				}
+			});
+			MultiSearch mSearchRequest = new MultiSearch();
+			mSearchRequest.setOffset((Integer) request.get(Constants.OFFSET));
+			mSearchRequest.setSize((Integer) request.get(Constants.SIZE));
+			enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest,connectionUserIds);
+			if (enrichedUserMap.size() > 1)
+				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
+		}
 		response.getResult().put(Constants.RESPONSE, enrichedUserMap);
 		response.getParams().setStatus(Constants.OK);
 		response.setResponseCode(HttpStatus.OK);

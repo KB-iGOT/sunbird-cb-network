@@ -103,7 +103,12 @@ public class Constants {
 	public static final String API_GET_USER_RECOMMENDATIONS_V2 = "api.user.recommendations.v2";
 	public static final String FIND_RECOMMENDED_MENTOR = "/find/recommended/mentors";
 	public static final String API_USER_MENTOR_RECOMMENDATIONS = "api.user.get.mentor.recommendations";
-
+	public static final String RECOMMENDED_USERS = "recommendedUsers";
+	public static final String PROFILE_DETAILS_PROFILE_IMAGE_URL = "profileDetails.profileImageUrl";
+	public static final String ORGANISATIONS = "organisations";
+	public static final String PROFILE_IMAGE_URL = "profileImageUrl";
+	public static final String MENTORS = "mentors";
+	public static final String USERS = "users";
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
