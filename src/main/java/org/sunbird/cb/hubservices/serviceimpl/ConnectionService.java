@@ -300,4 +300,22 @@ public class ConnectionService implements IConnectionService {
             return new ArrayList<>();
         }
     }
+
+
+	/**
+	 * Fetches a list of blocked users for a given user based on the provided request parameters.
+	 *
+	 * @param userId   The ID of the user for whom blocked users are to be fetched.
+	 * @param request  A map containing request parameters for fetching blocked users.
+	 * @return A list of maps containing data about blocked users.
+	 */
+	@Override
+	public List<Map<String, String>> findBlockedUsers(String userId, Map<String, Object> request) {
+		try {
+			return nodeService.findBlockedUsers(userId, request);
+		} catch (Exception e) {
+			logger.error(String.format("Error fetching Blocked users data %s %s", userId, e));
+			return new ArrayList<>();
+		}
+	}
 }

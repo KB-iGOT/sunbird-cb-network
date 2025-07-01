@@ -88,4 +88,12 @@ public class ConnectionProfileController {
 		SBApiResponse response = profileService.findRecommendedMentors(authToken,request);
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
+
+	@PostMapping(Constants.FETCH_BLOCKED)
+	public ResponseEntity<SBApiResponse> findBlockedUsers( @RequestHeader(value = Constants.X_AUTH_TOKEN, required = true) String authToken,
+													  @RequestBody Map<String, Object> request) {
+		SBApiResponse response = profileService.findBlockedUsers(authToken,request);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+
+	}
 }

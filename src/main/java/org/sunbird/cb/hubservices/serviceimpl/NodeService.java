@@ -122,4 +122,21 @@ public class NodeService implements INodeService {
 			return new ArrayList<>();
 		}
 	}
+
+	/**
+	 * Finds blocked users based on the provided request parameters.
+	 *
+	 * @param userId  The ID of the user for whom blocked users are to be found.
+	 * @param request A map containing request parameters for finding blocked users.
+	 * @return A list of maps, each representing a blocked user with relevant details.
+	 */
+	@Override
+	public List<Map<String, String>> findBlockedUsers(String userId, Map<String, Object> request) {
+		try {
+			return graphDao.findBlockedUsers(userId, request);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching Blocked users data %s %s", userId, e));
+			return new ArrayList<>();
+		}
+	}
 }

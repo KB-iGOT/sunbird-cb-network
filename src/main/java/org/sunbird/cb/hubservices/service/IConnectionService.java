@@ -102,4 +102,12 @@ public interface IConnectionService {
 	 * @return List of mentor recommendations
 	 */
 	List<Map<String, String>> findRecommendationForMentors(String userId, Map<String, Object> request);
+
+	/**
+	 * Find blocked users based on the request parameters
+	 * @param userId - User ID for which blocked users are to be fetched
+	 * @param request - Map containing request parameters such as offset, limit, etc.
+	 * @return List of blocked users
+	 */
+	List<Map<String, String>> findBlockedUsers(String userId, Map<String, Object> request);
 }

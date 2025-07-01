@@ -36,4 +36,13 @@ public interface INodeService {
 	 * @return A list of maps, each representing a mentor recommendation with relevant details.
 	 */
 	List<Map<String, String>> findRecommendationForMentors(String userId, Map<String, Object> request);
+
+	/**
+	 * Finds blocked users based on the provided request parameters.
+	 *
+	 * @param userId The ID of the user for whom blocked users are to be found.
+	 * @param request A map containing request parameters for finding blocked users.
+	 * @return A list of maps, each representing a blocked user with relevant details.
+	 */
+	List<Map<String, String>> findBlockedUsers(String userId, Map<String, Object> request);
 }

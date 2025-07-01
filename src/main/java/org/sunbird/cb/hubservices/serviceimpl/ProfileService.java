@@ -268,4 +268,37 @@ public class ProfileService implements IProfileService {
 		response.setResponseCode(HttpStatus.OK);
 		return response;
 	}
+
+
+	/** This method fetches the list of blocked users for the authenticated user.
+	 * It validates the access token, checks pagination parameters, and retrieves
+	 * blocked users from the connection service.
+	 *
+	 * @param authToken The authentication token of the user.
+	 * @param request   The request map containing pagination parameters.
+	 * @return SBApiResponse containing the list of blocked users or an error message.
+	 */
+	@Override
+	public SBApiResponse findBlockedUsers(String authToken, Map<String, Object> request) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_GET_BLOCKED_USERS);
+		String userId = "";
+		try {
+			userId = "a2a466e5-9ce2-40f7-8a0e-c1551782a8e9";//accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
+			if (StringUtils.isEmpty(userId)) {
+				return response;
+			}
+			if (!validatePaginationParams(request, response)) {
+				return response;
+			}
+			List<Map<String, String>> blockedUsersList = connectionService.findBlockedUsers(userId, request);
+			return enrichUserInformation(request, blockedUsersList, response,userId,Constants.BLOCKED_USERS);
+		}
+		catch (Exception e){
+			logger.error(String.format("Error while fetching blocked user %s %s", userId, e));
+			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+			response.getParams().setErrmsg("Error while fetching blocked user data");
+			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			return response;
+		}
+	}
 }

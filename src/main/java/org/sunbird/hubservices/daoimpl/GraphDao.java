@@ -540,4 +540,71 @@ public class GraphDao implements IGraphDao {
                 "SKIP $offset LIMIT $size";
         return new Statement(recommendedMentorsQuery, parameters);
     }
+
+
+    /**
+     * Finds blocked users based on the provided request parameters.
+     *
+     * @param userId  The ID of the user for whom blocked users are to be found.
+     * @param request A map containing request parameters for finding blocked users.
+     * @return A list of maps, each representing a blocked user with relevant details.
+     */
+    @Override
+    public List<Map<String, String>> findBlockedUsers(String userId, Map<String, Object> request) {
+        Map<String, String> blockedUsersData;
+        List<Map<String, String>> blockedUsersList = null;
+        try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put(Constants.USER_ID, userId);
+            int size = (Integer) request.get(Constants.SIZE);
+            int offset = Math.max(0, (Integer) request.get(Constants.OFFSET));
+            if (offset != 0) {
+                offset = (offset * size) + 1;
+            }
+            parameters.put(Constants.SIZE, size);
+            parameters.put(Constants.OFFSET, offset);
+            Statement statement = getStatementForBlockedUsers(parameters);
+            StatementResult result = transaction.run(statement);
+            List<Record> recordsForRecommendedMentors = result.list();
+            result.consume();
+            if (!CollectionUtils.isEmpty(recordsForRecommendedMentors)) {
+                blockedUsersList = new ArrayList<>();
+                for (Record record : recordsForRecommendedMentors) {
+                    blockedUsersData = new HashMap<>();
+                    blockedUsersData.put(Constants.USER_ID, record.get("blockedUserId").asString());
+                    blockedUsersData.put(Constants.DESIGNATION, record.get("blockedUserDesignation").asString());
+                    blockedUsersData.put(Constants.ORGANISATION_ID, record.get("blockedOrganisationId").asString());
+                    blockedUsersList.add(blockedUsersData);
+                }
+                logger.info("Blocked users for user {} fetched successfully. Found {} blocked users",
+                        userId, blockedUsersList.size());
+            }
+        }catch (Exception e){
+            logger.error("Error finding blocked users for user {}: {}", userId, e.getMessage());
+            }
+        return blockedUsersList;
+    }
+
+    /**
+     * Constructs a Neo4j statement to find blocked users for a given user.
+     *
+     * @param parameters A map containing userId, offset, and size for pagination.
+     * @return A Neo4j Statement object.
+     */
+    private Statement getStatementForBlockedUsers(Map<String, Object> parameters) {
+        String blockedUsersQuery = "MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]->(blocked:" +
+                connectionProperties.getUserLabelV3() + ") " +
+                "WHERE u.userId = $userId " +
+                "AND r.status IN ['blocked','Blocked'] " +
+                "RETURN " +
+                "u.userId AS userId, " +
+                "u.designation AS designation, " +
+                "u.organisationId AS organisationId, " +
+                "blocked.userId AS blockedUserId, " +
+                "blocked.designation AS blockedUserDesignation, " +
+                "blocked.organisationId AS blockedOrganisationId, " +
+                "r.status AS connectionStatus " +
+                "SKIP $offset LIMIT $size";
+        return new Statement(blockedUsersQuery, parameters);
+    }
 }

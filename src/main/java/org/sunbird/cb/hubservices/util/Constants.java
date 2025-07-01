@@ -109,6 +109,10 @@ public class Constants {
 	public static final String PROFILE_IMAGE_URL = "profileImageUrl";
 	public static final String MENTORS = "mentors";
 	public static final String USERS = "users";
+	public static final String FETCH_BLOCKED = "/fetch/blocked";
+	public static final String API_GET_BLOCKED_USERS= "api.user.blocked";
+	public static final String BLOCKED_USERS= "blockedUsers";
+
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),

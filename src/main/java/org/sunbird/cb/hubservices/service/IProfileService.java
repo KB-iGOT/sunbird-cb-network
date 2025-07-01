@@ -23,4 +23,6 @@ public interface IProfileService {
 	SBApiResponse findRecommendations(String authToken, Map<String, Object> request);
 
 	SBApiResponse findRecommendedMentors(String authToken, Map<String, Object> request);
+
+	SBApiResponse findBlockedUsers(String authToken, Map<String, Object> request);
 }
