@@ -607,4 +607,53 @@ public class GraphDao implements IGraphDao {
                 "SKIP $offset LIMIT $size";
         return new Statement(blockedUsersQuery, parameters);
     }
+
+    /**
+     * Gets the count of connections for a user based on the specified status and direction.
+     *
+     * @param userId   The ID of the user for whom connections count is to be fetched.
+     * @param status   The status of the connections (e.g., 'connected', 'blocked').
+     * @param direction The direction of the connections (OUT, IN, or BOTH).
+     * @return A map containing the count of connections.
+     */
+    @Override
+    public Map<String, Integer> getConnectionsCountByStatus(String userId, String status, Constants.DIRECTION direction) {
+        try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put(Constants.USER_ID, userId);
+            parameters.put(Constants.STATUS, status);
+
+            StringBuilder countQuery = new StringBuilder();
+            if (direction ==Constants.DIRECTION.OUT) {
+                // Count outgoing connections (user → other)
+                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]->(other:" +
+                        connectionProperties.getUserLabelV3() + ") " +
+                        "WHERE u.userId = $userId AND r.status = $status " +
+                        "RETURN COUNT(r) AS count");
+            } else if (direction == Constants.DIRECTION.IN) {
+                // Count incoming connections (other → user)
+                countQuery = new StringBuilder("MATCH (other:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]->(u:" +
+                        connectionProperties.getUserLabelV3() + ") " +
+                        "WHERE u.userId = $userId AND r.status = $status " +
+                        "RETURN COUNT(r) AS count");
+            } else {
+                // Count connections in both directions
+                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]-(other:" +
+                        connectionProperties.getUserLabelV3() + ") " +
+                        "WHERE u.userId = $userId AND r.status = $status " +
+                        "RETURN COUNT(r) AS count");
+            }
+            Statement statement = new Statement(countQuery.toString(), parameters);
+            StatementResult result = transaction.run(statement);
+            Record record = result.single();
+            result.consume();
+            int count = record.get(Constants.COUNT).asInt();
+            Map<String, Integer> resultMap = new HashMap<>();
+            resultMap.put(Constants.COUNT, count);
+            return resultMap;
+        } catch (Exception e) {
+            logger.error(String.format("Error fetching connections count by status for user %s: %s", userId, e));
+        }
+        return new HashMap<>();
+    }
 }

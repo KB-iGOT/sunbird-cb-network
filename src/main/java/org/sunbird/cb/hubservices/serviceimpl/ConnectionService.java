@@ -177,7 +177,8 @@ public class ConnectionService implements IConnectionService {
 			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit,
 					Arrays.asList(Constants.Graph.ID.getValue()));
 			int count = nodeService.getNodesCount(userId, relationProperties, null);
-
+			Map<String,Integer> userCount = nodeService.getConnectionsCountByStatus(userId,Constants.Status.APPROVED, Constants.DIRECTION.OUT);
+			response.put(Constants.COUNT,userCount.get(Constants.COUNT));
 			response.put(Constants.ResponseStatus.PAGENO, offset);
 			response.put(Constants.ResponseStatus.TOTALHIT, count);
 
@@ -205,7 +206,8 @@ public class ConnectionService implements IConnectionService {
 			relationProperties.put(Constants.Graph.STATUS.getValue(), Constants.Status.PENDING);
 
 			List<Node> nodes = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
-
+			Map<String,Integer> userCount = nodeService.getConnectionsCountByStatus(userId,Constants.Status.PENDING, direction);
+			response.put(Constants.COUNT,userCount.get(Constants.COUNT));
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 			response.put(Constants.ResponseStatus.DATA, enrichUserInfo(nodes));
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);

@@ -139,4 +139,23 @@ public class NodeService implements INodeService {
 			return new ArrayList<>();
 		}
 	}
+
+	/**
+	 * Get the count of connections by status for a user.
+	 *
+	 * @param userId   The ID of the user for whom the connections count is to be fetched.
+	 * @param pending  The status of the connections to filter by (e.g., "pending", "accepted").
+	 * @param direction The direction of the connection (e.g., incoming, outgoing).
+	 * @return A map containing the count of connections by status.
+	 */
+	@Override
+	public Map<String, Integer> getConnectionsCountByStatus(String userId, String pending, Constants.DIRECTION direction) {
+		try {
+			return graphDao.getConnectionsCountByStatus(userId, pending, direction);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching connections count by status for user %s: %s", userId, e));
+		}
+		return new HashMap<>();
+	}
+
 }

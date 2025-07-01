@@ -112,7 +112,7 @@ public class Constants {
 	public static final String FETCH_BLOCKED = "/fetch/blocked";
 	public static final String API_GET_BLOCKED_USERS= "api.user.blocked";
 	public static final String BLOCKED_USERS= "blockedUsers";
-
+	public static final String COUNT = "count";
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),

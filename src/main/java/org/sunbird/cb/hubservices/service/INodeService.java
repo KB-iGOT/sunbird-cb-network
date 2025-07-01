@@ -45,4 +45,14 @@ public interface INodeService {
 	 * @return A list of maps, each representing a blocked user with relevant details.
 	 */
 	List<Map<String, String>> findBlockedUsers(String userId, Map<String, Object> request);
+
+	/**
+	 * Get the count of connections by status for a user.
+	 *
+	 * @param userId The ID of the user for whom the connections count is to be fetched.
+	 * @param pending The status of the connections to filter by (e.g., "pending", "accepted").
+	 * @param direction The direction of the connection (e.g., incoming, outgoing).
+	 * @return A map containing the count of connections by status.
+	 */
+	Map<String, Integer> getConnectionsCountByStatus(String userId, String pending, Constants.DIRECTION direction);
 }
