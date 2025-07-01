@@ -283,7 +283,7 @@ public class ProfileService implements IProfileService {
 		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_GET_BLOCKED_USERS);
 		String userId = "";
 		try {
-			userId = "a2a466e5-9ce2-40f7-8a0e-c1551782a8e9";//accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
+			userId = accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
 			if (StringUtils.isEmpty(userId)) {
 				return response;
 			}
