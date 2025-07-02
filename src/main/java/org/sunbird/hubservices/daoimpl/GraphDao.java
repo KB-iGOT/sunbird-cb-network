@@ -50,7 +50,7 @@ public class GraphDao implements IGraphDao {
     @Override
     public Boolean upsertNode(Node node) throws Exception {
         try (Session session = neo4jDriver.session();Transaction transaction = session.beginTransaction()) {
-            Statement statement = new Statement("MATCH (n:" + connectionProperties.getUserLabelV3() + ") WHERE n.userId=$fromUUID " + "RETURN n", parameters(Constants.FROM_UUID, node.getId()));
+            Statement statement = new Statement("MATCH (n:" + label + ") WHERE n.userId=$fromUUID " + "RETURN n", parameters(Constants.FROM_UUID, node.getId()));
             StatementResult result = transaction.run(statement);
             List<Record> existingNodes = result.list();
             result.consume();
@@ -61,7 +61,7 @@ public class GraphDao implements IGraphDao {
                 Map<String, Object> params = new HashMap<>();
                 params.put(Constants.Graph.PROPS.getValue(), new ObjectMapper().convertValue(node, Map.class));
                 StringBuilder queryBuilder = new StringBuilder();
-                queryBuilder.append("CREATE (n:").append(connectionProperties.getUserLabelV3()).append(") SET n = $props RETURN n");
+                queryBuilder.append("CREATE (n:").append(label).append(") SET n = $props RETURN n");
                 statement = new Statement(queryBuilder.toString(), params);
                 result = transaction.run(statement);
                 result.consume();
@@ -85,8 +85,8 @@ public class GraphDao implements IGraphDao {
             parameters.put(Constants.TO_UUID, nodeTo.getId());
             parameters.put(Constants.Graph.PROPS.getValue(), relationProperties);
 
-            String queryNodeExistWithReverseEdge = "MATCH (n:" + connectionProperties.getUserLabelV3() + ")<-[r:connect]-(n1:" +
-                    connectionProperties.getUserLabelV3() + ") WHERE n.userId = $fromUUID AND n1.userId = $toUUID " + "RETURN n,n1";
+            String queryNodeExistWithReverseEdge = "MATCH (n:" + label + ")<-[r:connect]-(n1:" +
+                    label + ") WHERE n.userId = $fromUUID AND n1.userId = $toUUID " + "RETURN n,n1";
 
             Statement statement = new Statement(queryNodeExistWithReverseEdge, parameters);
             StatementResult result = transaction.run(statement);
@@ -98,7 +98,7 @@ public class GraphDao implements IGraphDao {
                 isUpserted = updateRelationshipBetweenTwoNodes(nodeFrom, nodeTo, statement, result, transaction, recordSize, relationProperties);
                 transaction.commitAsync().toCompletableFuture().get();
             } else {
-                String query = "MATCH (n:" + connectionProperties.getUserLabelV3() + ")-[r:connect]->(n1:" + connectionProperties.getUserLabelV3() +
+                String query = "MATCH (n:" + label + ")-[r:connect]->(n1:" + label +
                         ") WHERE n.userId = $fromUUID AND n1.userId = $toUUID " + "RETURN n,n1";
 
                 statement = new Statement(query, parameters);
@@ -127,7 +127,7 @@ public class GraphDao implements IGraphDao {
         parameters.put(Constants.FROM_UUID, nodeFrom.getId());
         parameters.put(Constants.TO_UUID, nodeTo.getId());
         parameters.put(Constants.Graph.PROPS.getValue(), relationProperties);
-        String updateQuery = "MATCH (n:" + connectionProperties.getUserLabelV3() + ")-[r:connect]->(n1:" + connectionProperties.getUserLabelV3() +
+        String updateQuery = "MATCH (n:" + label + ")-[r:connect]->(n1:" + label +
                 ") WHERE n.userId = $fromUUID AND n1.userId = $toUUID " + "SET r" + " += " +
                 "$props " + "RETURN n,n1";
 
@@ -149,7 +149,7 @@ public class GraphDao implements IGraphDao {
         StringBuilder query;
         Statement statement;
         query = new StringBuilder();
-        query.append("MATCH (n:").append(connectionProperties.getUserLabelV3()).append("), (n1:").append(connectionProperties.getUserLabelV3())
+        query.append("MATCH (n:").append(label).append("), (n1:").append(label)
                 .append(") WHERE n.userId = $fromUUID AND n1.userId = $toUUID ")
                 .append("CREATE (n)-[r:connect]->(n1) ").append("SET r").append(" += ").append("$props ")
                 .append("RETURN n,n1");
@@ -180,13 +180,13 @@ public class GraphDao implements IGraphDao {
                 StringBuilder query = new StringBuilder();
 
                 if (direction == Constants.DIRECTION.OUT) {
-                    query.append("MATCH (n:").append(connectionProperties.getUserLabelV3()).append(")-[r:connect]->(n1:").append(connectionProperties.getUserLabelV3())
+                    query.append("MATCH (n:").append(label).append(")-[r:connect]->(n1:").append(label)
                             .append(") WHERE n.userId = $UUID ");
                 } else if (direction == Constants.DIRECTION.IN) {
-                    query.append("MATCH (n:").append(connectionProperties.getUserLabelV3()).append(")<-[r:connect]-(n1:").append(connectionProperties.getUserLabelV3())
+                    query.append("MATCH (n:").append(label).append(")<-[r:connect]-(n1:").append(label)
                             .append(") WHERE n.userId = $UUID ");
                 } else {
-                    query.append("MATCH (n:").append(connectionProperties.getUserLabelV3()).append(")-[r:connect]-(n1:").append(connectionProperties.getUserLabelV3())
+                    query.append("MATCH (n:").append(label).append(")-[r:connect]-(n1:").append(label)
                             .append(") WHERE n.userId = $UUID ");
                 }
 
@@ -260,13 +260,13 @@ public class GraphDao implements IGraphDao {
                 StringBuilder linkNthLevel = new StringBuilder();
                 for (int i = 0; i <= level; i++) {
                     if (direction == Constants.DIRECTION.OUT)
-                        linkNthLevel.append("(n").append(i).append(":").append(connectionProperties.getUserLabelV3()).append(")").append("-[r")
+                        linkNthLevel.append("(n").append(i).append(":").append(label).append(")").append("-[r")
                                 .append(i).append(":connect]->");
                     if (direction == Constants.DIRECTION.IN)
-                        linkNthLevel.append("(n").append(i).append(":").append(connectionProperties.getUserLabelV3()).append(")").append("<-[r")
+                        linkNthLevel.append("(n").append(i).append(":").append(label).append(")").append("<-[r")
                                 .append(i).append(":connect]-");
                     if (direction == null)
-                        linkNthLevel.append("(n").append(i).append(":").append(connectionProperties.getUserLabelV3()).append(")").append("-[r")
+                        linkNthLevel.append("(n").append(i).append(":").append(label).append(")").append("-[r")
                                 .append(i).append(":connect]-");
                 }
                 String s = (direction == Constants.DIRECTION.IN)
@@ -317,7 +317,7 @@ public class GraphDao implements IGraphDao {
     @Override
     public Map<String, String> getRelationshipBetweenUsers(String fromUser, String toUser) {
         Map<String, String> relationshipProps = new HashMap<>();
-        String query = "MATCH (a:" + connectionProperties.getUserLabelV3() + ")-[r:connect]-(b:" + connectionProperties.getUserLabelV3() + ") " +
+        String query = "MATCH (a:" + label + ")-[r:connect]-(b:" + label + ") " +
                 "WHERE a.userId = $fromUser AND b.userId = $toUser RETURN r LIMIT 1";
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.FROM_USER, fromUser);
