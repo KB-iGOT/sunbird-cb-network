@@ -10,6 +10,6 @@ public class GraphConfg {
 
 	@Bean
 	public IGraphDao userGraphDao() {
-		return new GraphDao("userV3");
+		return new GraphDao("userV2");
 	}
 }
