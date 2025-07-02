@@ -113,6 +113,9 @@ public class Constants {
 	public static final String API_GET_BLOCKED_USERS= "api.user.blocked";
 	public static final String BLOCKED_USERS= "blockedUsers";
 	public static final String COUNT = "count";
+	public static final String CONNECTION_REQUESTED = "connectionRequested";
+	public static final String CONNECTION_RECIEVED = "connectionRecieved";
+	public static final String CONNECTION_ESTABLISHED = "connectionEstablished" ;
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),

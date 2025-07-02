@@ -3,11 +3,17 @@ package org.sunbird.cb.hubservices.serviceimpl;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
 import org.sunbird.cb.hubservices.cassandra.CassandraOperation;
 import org.sunbird.cb.hubservices.exception.ApplicationException;
 import org.sunbird.cb.hubservices.exception.BadRequestException;
@@ -43,6 +49,12 @@ public class ConnectionService implements IConnectionService {
 
 	@Autowired
 	NotificationTriggerService notificationTriggerService;
+
+	@Autowired
+	RedisCacheMgr redisCacheMgr;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@Override
 	public Response upsert(ConnectionRequest request, String updateOperation) {
@@ -177,7 +189,21 @@ public class ConnectionService implements IConnectionService {
 			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit,
 					Arrays.asList(Constants.Graph.ID.getValue()));
 			int count = nodeService.getNodesCount(userId, relationProperties, null);
-			Map<String,Integer> userCount = nodeService.getConnectionsCountByStatus(userId,Constants.Status.APPROVED, Constants.DIRECTION.OUT);
+			Map<String,Integer> userCount = new HashMap<>();
+			String connectionEstablishedInformation = redisCacheMgr.getCache(
+					Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId);
+			if (!StringUtils.isEmpty(connectionEstablishedInformation)) {
+				userCount = objectMapper.readValue(connectionEstablishedInformation,
+						new TypeReference<Map<String,Integer>>() {
+						});
+			}
+			if(MapUtils.isEmpty(userCount)){
+				userCount = nodeService.getConnectionsCountByStatus(userId,Constants.Status.APPROVED, Constants.DIRECTION.OUT);
+				if(MapUtils.isNotEmpty(userCount)){
+					redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId, userCount, connectionProperties.getRedisUserConnectionEstablishedTimeOut());
+				}
+			}
+
 			response.put(Constants.COUNT,userCount.get(Constants.COUNT));
 			response.put(Constants.ResponseStatus.PAGENO, offset);
 			response.put(Constants.ResponseStatus.TOTALHIT, count);
@@ -205,15 +231,41 @@ public class ConnectionService implements IConnectionService {
 			Map<String, String> relationProperties = new HashMap<>();
 			relationProperties.put(Constants.Graph.STATUS.getValue(), Constants.Status.PENDING);
 
-			List<Node> nodes = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
-			Map<String,Integer> userCount = nodeService.getConnectionsCountByStatus(userId,Constants.Status.PENDING, direction);
-			response.put(Constants.COUNT,userCount.get(Constants.COUNT));
+			String connectionRequestedInformation;
+			String connectionRecievedInformation;
+			List<Node> nodes = new ArrayList<>();
+			if (direction == Constants.DIRECTION.OUT) {
+				connectionRequestedInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId);
+				if (!StringUtils.isEmpty(connectionRequestedInformation)) {
+					nodes = objectMapper.readValue(connectionRequestedInformation,
+							new TypeReference<List<Node>>() {
+							});
+				}
+			} else if (direction == Constants.DIRECTION.IN) {
+				connectionRecievedInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId);
+				if (!StringUtils.isEmpty(connectionRecievedInformation)) {
+					nodes = objectMapper.readValue(connectionRecievedInformation,
+							new TypeReference<List<Node>>() {
+							});
+				}
+			}
+			if (CollectionUtils.isEmpty(nodes)) {
+				nodes = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
+				if (!nodes.isEmpty())
+					if (direction == Constants.DIRECTION.OUT) {
+						redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId, nodes, connectionProperties.getRedisUserConnectionRequestedTimeOut());
+					} else if (direction == Constants.DIRECTION.IN) {
+						redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId, nodes, connectionProperties.getRedisUserConnectionRecievedTimeOut());
+					}
+			}
+			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, direction);
+			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 			response.put(Constants.ResponseStatus.DATA, enrichUserInfo(nodes));
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
 
 		} catch (Exception e) {
-			logger.error("ConnectionService::findConnectionsRequestedV2 " , e);
+			logger.error("ConnectionService::findConnectionsRequestedV2 ", e);
 			throw new ApplicationException(Constants.Message.FAILED_CONNECTION + e.getMessage());
 		}
 
