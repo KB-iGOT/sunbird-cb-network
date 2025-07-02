@@ -183,8 +183,19 @@ public class UserUtilityService implements IUserUtility {
                 ((ObjectNode) profileDetails).put(ProfileUtils.Profile.USER_ID, n.get(ProfileUtils.Profile.USER_ID).asText());
                 ((ObjectNode) profileDetails).put(ProfileUtils.Profile.ID, n.get(ProfileUtils.Profile.USER_ID).asText());
                 ((ObjectNode) profileDetails).put(ProfileUtils.Profile.AT_ID, n.get(ProfileUtils.Profile.USER_ID).asText());
-                ((ObjectNode) profileDetails).put(ProfileUtils.Profile.ORGANISATIONS,n.get(Constants.ORGANISATIONS).asText());
-                ((ObjectNode) profileDetails).put(ProfileUtils.Profile.PROFILE_IMAGE_URL,profileDetails.get(Constants.PROFILE_IMAGE_URL).asText());
+                JsonNode organisationsNode = n.get(Constants.ORGANISATIONS);
+                if (organisationsNode != null && !organisationsNode.isNull()) {
+                    ((ObjectNode) profileDetails).set(ProfileUtils.Profile.ORGANISATIONS, organisationsNode);
+                } else {
+                    ((ObjectNode) profileDetails).putArray(ProfileUtils.Profile.ORGANISATIONS);
+                }
+                JsonNode profileImageNode = profileDetails.get(Constants.PROFILE_IMAGE_URL);
+                if (profileImageNode != null && !profileImageNode.isNull()) {
+                    ((ObjectNode) profileDetails).put(ProfileUtils.Profile.PROFILE_IMAGE_URL, profileImageNode.asText());
+                } else {
+                    ((ObjectNode) profileDetails).put(ProfileUtils.Profile.PROFILE_IMAGE_URL, "");
+                }
+                arrayRes.add(n.get(ProfileUtils.Profile.PROFILE_DETAILS));
                 arrayRes.add(n.get(ProfileUtils.Profile.PROFILE_DETAILS));
             }
         }
