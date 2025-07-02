@@ -3,6 +3,7 @@ package org.sunbird.cb.hubservices.serviceimpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -149,9 +150,16 @@ public class ProfileService implements IProfileService {
 				return response;
 			}
 			List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
+			if(CollectionUtils.isEmpty(recommendationUsersList)){
+				logger.info("ProfileService : findRecommendations : Recommended Users List is empty for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.OK.toString());
+				response.getResult().put("response","Recommended users list is empty");
+				response.setResponseCode(HttpStatus.OK);
+				return response;
+			}
 			return enrichUserInformation(request, recommendationUsersList, response,userId,Constants.USERS);
 		} catch (Exception e) {
-			logger.error(String.format("Error while fetching recommendation for the user %s %s", userId, e));
+			logger.error(String.format("ProfileService:findRecommendations:Error while fetching recommendation for the user %s %s", userId, e));
 			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
 			response.getParams().setErrmsg("Error while fetching recommendation for the user");
 			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -214,9 +222,16 @@ public class ProfileService implements IProfileService {
 				return response;
 			}
 			List<Map<String, String>> recommendationMentorsList = connectionService.findRecommendationForMentors(userId, request);
+			if(CollectionUtils.isEmpty(recommendationMentorsList)){
+				logger.info("ProfileService : findRecommendedMentors : Recommendation Mentors List is empty for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.OK.toString());
+				response.getResult().put("response","No recommendations found for the user");
+				response.setResponseCode(HttpStatus.OK);
+				return response;
+			}
 			return enrichUserInformation(request, recommendationMentorsList, response,userId,Constants.MENTORS);
 		} catch (Exception e) {
-			logger.error(String.format("Error while fetching recommendation for the user %s %s", userId, e));
+			logger.error(String.format("ProfileService : findRecommendedMentors :Error while fetching recommendation for the user %s %s", userId, e));
 			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
 			response.getParams().setErrmsg("Error while fetching recommendation for the user");
 			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -243,7 +258,7 @@ public class ProfileService implements IProfileService {
 			try {
 				jsonNode = mapper.readTree(userInformation);
 			} catch (IOException e) {
-				logger.error("Error reading user information from Redis cache", e);
+				logger.error("ProfileService :enrichUserInformation: Error reading user information from Redis cache", e);
 				response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
 				response.getResult().put(Constants.RESPONSE, "Error reading user information from cache");
 				response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -291,10 +306,17 @@ public class ProfileService implements IProfileService {
 				return response;
 			}
 			List<Map<String, String>> blockedUsersList = connectionService.findBlockedUsers(userId, request);
+			if(CollectionUtils.isEmpty(blockedUsersList)){
+				logger.info("ProfileService : findBlockedUsers : Blocked Users List is empty for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.OK.toString());
+				response.getResult().put("response","Blocked users list is empty");
+				response.setResponseCode(HttpStatus.OK);
+				return response;
+			}
 			return enrichUserInformation(request, blockedUsersList, response,userId,Constants.BLOCKED_USERS);
 		}
 		catch (Exception e){
-			logger.error(String.format("Error while fetching blocked user %s %s", userId, e));
+			logger.error(String.format("ProfileService : findBlockedUsers : Error while fetching blocked user %s %s", userId, e));
 			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
 			response.getParams().setErrmsg("Error while fetching blocked user data");
 			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);

@@ -118,7 +118,7 @@ public class NodeService implements INodeService {
 		try {
 			return graphDao.findRecommendationForMentors(userId, request);
 		} catch (GraphException e) {
-			logger.error(String.format("Error fetching Recommendations for user %s %s", userId, e));
+			logger.error(String.format("Error fetching Mentor Recommendations for user %s %s", userId, e));
 			return new ArrayList<>();
 		}
 	}

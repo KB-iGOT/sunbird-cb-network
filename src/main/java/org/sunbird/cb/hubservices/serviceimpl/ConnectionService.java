@@ -333,7 +333,7 @@ public class ConnectionService implements IConnectionService {
 		try {
 			return nodeService.findRecommendationForUser(userId,request);
 		} catch (Exception e) {
-			logger.error(String.format("Error fetching Recommendations for user %s %s", userId, e));
+			logger.error(String.format("ConnectionService: findRecommendationForUser:Error fetching Recommendations for user %s %s", userId, e));
 			return new ArrayList<>();
 		}
 	}
@@ -350,7 +350,7 @@ public class ConnectionService implements IConnectionService {
         try {
             return nodeService.findRecommendationForMentors(userId, request);
         } catch (Exception e) {
-            logger.error(String.format("Error fetching Recommendations for user %s %s", userId, e));
+            logger.error(String.format("ConnectionService:findRecommendationForMentors: Error fetching Mentor Recommendations for user %s %s", userId, e));
             return new ArrayList<>();
         }
     }
@@ -368,7 +368,7 @@ public class ConnectionService implements IConnectionService {
 		try {
 			return nodeService.findBlockedUsers(userId, request);
 		} catch (Exception e) {
-			logger.error(String.format("Error fetching Blocked users data %s %s", userId, e));
+			logger.error(String.format("ConnectionService:findBlockedUsers:Error fetching Blocked users data %s %s", userId, e));
 			return new ArrayList<>();
 		}
 	}
