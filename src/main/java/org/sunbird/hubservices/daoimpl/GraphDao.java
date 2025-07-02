@@ -50,7 +50,7 @@ public class GraphDao implements IGraphDao {
     @Override
     public Boolean upsertNode(Node node) throws Exception {
         try (Session session = neo4jDriver.session();Transaction transaction = session.beginTransaction()) {
-            Statement statement = new Statement("MATCH (n:" + label + ") WHERE n.id=$fromUUID " + "RETURN n", parameters(Constants.FROM_UUID, node.getId()));
+            Statement statement = new Statement("MATCH (n:" + label + ") WHERE n.userId=$fromUUID " + "RETURN n", parameters(Constants.FROM_UUID, node.getId()));
             StatementResult result = transaction.run(statement);
             List<Record> existingNodes = result.list();
             result.consume();
@@ -86,7 +86,7 @@ public class GraphDao implements IGraphDao {
             parameters.put(Constants.Graph.PROPS.getValue(), relationProperties);
 
             String queryNodeExistWithReverseEdge = "MATCH (n:" + label + ")<-[r:connect]-(n1:" +
-                    label + ") WHERE n.id = $fromUUID AND n1.id = $toUUID " + "RETURN n,n1";
+                    label + ") WHERE n.userId = $fromUUID AND n1.userId = $toUUID " + "RETURN n,n1";
 
             Statement statement = new Statement(queryNodeExistWithReverseEdge, parameters);
             StatementResult result = transaction.run(statement);
@@ -99,7 +99,7 @@ public class GraphDao implements IGraphDao {
                 transaction.commitAsync().toCompletableFuture().get();
             } else {
                 String query = "MATCH (n:" + label + ")-[r:connect]->(n1:" + label +
-                        ") WHERE n.id = $fromUUID AND n1.id = $toUUID " + "RETURN n,n1";
+                        ") WHERE n.userId = $fromUUID AND n1.userId = $toUUID " + "RETURN n,n1";
 
                 statement = new Statement(query, parameters);
                 result = transaction.run(statement);
@@ -128,7 +128,7 @@ public class GraphDao implements IGraphDao {
         parameters.put(Constants.TO_UUID, nodeTo.getId());
         parameters.put(Constants.Graph.PROPS.getValue(), relationProperties);
         String updateQuery = "MATCH (n:" + label + ")-[r:connect]->(n1:" + label +
-                ") WHERE n.id = $fromUUID AND n1.id = $toUUID " + "SET r" + " += " +
+                ") WHERE n.userId = $fromUUID AND n1.userId = $toUUID " + "SET r" + " += " +
                 "$props " + "RETURN n,n1";
 
         statement = new Statement(updateQuery, parameters);
@@ -150,7 +150,7 @@ public class GraphDao implements IGraphDao {
         Statement statement;
         query = new StringBuilder();
         query.append("MATCH (n:").append(label).append("), (n1:").append(label)
-                .append(") WHERE n.id = $fromUUID AND n1.id = $toUUID ")
+                .append(") WHERE n.userId = $fromUUID AND n1.userId = $toUUID ")
                 .append("CREATE (n)-[r:connect]->(n1) ").append("SET r").append(" += ").append("$props ")
                 .append("RETURN n,n1");
 
@@ -181,13 +181,13 @@ public class GraphDao implements IGraphDao {
 
                 if (direction == Constants.DIRECTION.OUT) {
                     query.append("MATCH (n:").append(label).append(")-[r:connect]->(n1:").append(label)
-                            .append(") WHERE n.id = $UUID ");
+                            .append(") WHERE n.userId = $UUID ");
                 } else if (direction == Constants.DIRECTION.IN) {
                     query.append("MATCH (n:").append(label).append(")<-[r:connect]-(n1:").append(label)
-                            .append(") WHERE n.id = $UUID ");
+                            .append(") WHERE n.userId = $UUID ");
                 } else {
                     query.append("MATCH (n:").append(label).append(")-[r:connect]-(n1:").append(label)
-                            .append(") WHERE n.id = $UUID ");
+                            .append(") WHERE n.userId = $UUID ");
                 }
 
                 relationProperties.forEach((key, value) -> query.append(" AND r.").append(key).append(" = ").append("'").append(value).append("'"));
@@ -274,7 +274,7 @@ public class GraphDao implements IGraphDao {
                         : linkNthLevel.substring(0, linkNthLevel.lastIndexOf("[") - 1);
 
                 StringBuilder query = new StringBuilder();
-                query.append("MATCH ").append(s).append(" WHERE n0.id = $UUID ");
+                query.append("MATCH ").append(s).append(" WHERE n0.userId = $UUID ");
 
                 relationProperties.forEach((key, value) -> query.append(" AND r").append(level - 1).append(".")
                         .append(key).append(" = ").append("'").append(value).append("'"));
@@ -318,7 +318,7 @@ public class GraphDao implements IGraphDao {
     public Map<String, String> getRelationshipBetweenUsers(String fromUser, String toUser) {
         Map<String, String> relationshipProps = new HashMap<>();
         String query = "MATCH (a:" + label + ")-[r:connect]-(b:" + label + ") " +
-                "WHERE a.id = $fromUser AND b.id = $toUser RETURN r LIMIT 1";
+                "WHERE a.userId = $fromUser AND b.userId = $toUser RETURN r LIMIT 1";
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.FROM_USER, fromUser);
         params.put(Constants.TO_USER, toUser);
