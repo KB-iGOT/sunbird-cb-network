@@ -145,7 +145,7 @@ public class ProfileService implements IProfileService {
 			if (StringUtils.isEmpty(userId)) {
 				return response;
 			}
-			if (!validatePaginationParams(request, response)) {
+			if (validatePaginationParams(request, response)) {
 				return response;
 			}
 			List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
@@ -173,13 +173,13 @@ public class ProfileService implements IProfileService {
 			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
 			response.getParams().setErrmsg("Request body cannot be null");
 			response.setResponseCode(HttpStatus.BAD_REQUEST);
-			return false;
+			return true;
 		}
 		if (!request.containsKey("offset") || !request.containsKey("size")) {
 			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
 			response.getParams().setErrmsg("Missing required parameters: offset and size");
 			response.setResponseCode(HttpStatus.BAD_REQUEST);
-			return false;
+			return true;
 		}
 		Object offsetObj = request.get("offset");
 		Object sizeObj = request.get("size");
@@ -187,9 +187,9 @@ public class ProfileService implements IProfileService {
 			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
 			response.getParams().setErrmsg("Parameters offset and size must be integers");
 			response.setResponseCode(HttpStatus.BAD_REQUEST);
-			return false;
+			return true;
 		}
-		return true;
+		return false;
 	}
 
 	/**
@@ -210,7 +210,7 @@ public class ProfileService implements IProfileService {
 			if (StringUtils.isEmpty(userId)) {
 				return response;
 			}
-			if (!validatePaginationParams(request, response)) {
+			if (validatePaginationParams(request, response)) {
 				return response;
 			}
 			List<Map<String, String>> recommendationMentorsList = connectionService.findRecommendationForMentors(userId, request);
@@ -287,7 +287,7 @@ public class ProfileService implements IProfileService {
 			if (StringUtils.isEmpty(userId)) {
 				return response;
 			}
-			if (!validatePaginationParams(request, response)) {
+			if (validatePaginationParams(request, response)) {
 				return response;
 			}
 			List<Map<String, String>> blockedUsersList = connectionService.findBlockedUsers(userId, request);
