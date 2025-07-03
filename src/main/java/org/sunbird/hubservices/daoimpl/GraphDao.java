@@ -9,12 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import org.neo4j.driver.v1.Driver;
-import org.neo4j.driver.v1.Record;
-import org.neo4j.driver.v1.Session;
-import org.neo4j.driver.v1.Statement;
-import org.neo4j.driver.v1.StatementResult;
-import org.neo4j.driver.v1.Transaction;
+import org.neo4j.driver.v1.*;
 import org.neo4j.driver.v1.exceptions.ClientException;
 import org.neo4j.driver.v1.exceptions.SessionExpiredException;
 import org.slf4j.Logger;
@@ -358,6 +353,13 @@ public class GraphDao implements IGraphDao {
                     recommendationData.put(Constants.USER_ID, record.get(Constants.USER_ID).asString());
                     recommendationData.put(Constants.ORGANISATION_ID, record.get(Constants.ORGANISATION_ID).asString());
                     recommendationData.put(Constants.DESIGNATION, record.get(Constants.DESIGNATION).asString());
+                    if (!record.get(Constants.ROLE).isNull()) {
+                        List<String> rolesList = record.get(Constants.ROLE).asList(Value::asString);
+                        String rolesString = String.join(",", rolesList);
+                        recommendationData.put(Constants.ROLE, rolesString);
+                    } else {
+                        recommendationData.put(Constants.ROLE, "");
+                    }
                     recommendationList.add(recommendationData);
                 }
                 logger.info("Recommendations for user {} fetched successfully. Found {} recommendations",
@@ -395,7 +397,8 @@ public class GraphDao implements IGraphDao {
                         "AND u2.userId <> u1.userId " +
                         "AND NOT (u1)--(u2) " +
                         "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                        "u2.designation as designation " +
+                        "u2.designation as designation, " +
+                        "u2.role as role " +
                         "SKIP $offset LIMIT $size";
             } else {
                 int existingRecordsSize = recordsFromSameOrg.size();
@@ -415,7 +418,8 @@ public class GraphDao implements IGraphDao {
                             "AND NOT (u1)--(u2) " +
                             "AND NOT u2.userId IN $foundUsers " +
                             "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                            "u2.designation as designation " +
+                            "u2.designation as designation, " +
+                            "u2.role as role " +
                             "SKIP $offset LIMIT $size";
                 } else {
                     return recordsFromSameOrg;
@@ -476,7 +480,8 @@ public class GraphDao implements IGraphDao {
                 "AND u2.userId <> u1.userId " +
                 "AND NOT (u1)--(u2) " +
                 "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                "u2.designation as designation " +
+                "u2.designation as designation, " +
+                "u2.role as role " +
                 "SKIP $offset LIMIT $size";
         return new Statement(orgQuery, parameters);
     }
@@ -513,6 +518,13 @@ public class GraphDao implements IGraphDao {
                     recommendationData.put(Constants.USER_ID, record.get(Constants.USER_ID).asString());
                     recommendationData.put(Constants.ORGANISATION_ID, record.get(Constants.ORGANISATION_ID).asString());
                     recommendationData.put(Constants.DESIGNATION, record.get(Constants.DESIGNATION).asString());
+                    if (!record.get(Constants.ROLE).isNull()) {
+                        List<String> rolesList = record.get(Constants.ROLE).asList(Value::asString);
+                        String rolesString = String.join(",", rolesList);
+                        recommendationData.put(Constants.ROLE, rolesString);
+                    } else {
+                        recommendationData.put(Constants.ROLE, "");
+                    }
                     recommendationList.add(recommendationData);
                 }
                 logger.info("Recommendations for user {} fetched successfully. Found {} recommendations",
@@ -537,6 +549,7 @@ public class GraphDao implements IGraphDao {
                 "AND 'MENTOR' IN u2.role " +
                 "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
                 "u2.designation as designation " +
+                "u2.role as role " +
                 "SKIP $offset LIMIT $size";
         return new Statement(recommendedMentorsQuery, parameters);
     }

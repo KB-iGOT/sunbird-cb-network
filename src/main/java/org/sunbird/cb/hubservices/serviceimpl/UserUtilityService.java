@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.commons.collections4.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -100,7 +101,7 @@ public class UserUtilityService implements IUserUtility {
             searchQueryMap.put("fields", includeFields);
             request.setRequest(searchQueryMap);
             tags.add(sRequest.getField());
-            fetchUserDetailsFromLearnerService(connectionIdsToExclude, request, arrayRes);
+            fetchUserDetailsFromLearnerService(connectionIdsToExclude, request, arrayRes, new HashMap<>());
         } catch (Exception e) {
             logger.error(String.format("Error while connecting the nodes! error : %s", e));
         }
@@ -138,15 +139,15 @@ public class UserUtilityService implements IUserUtility {
     }
 
     @Override
-    public ArrayNode getUserInfoFromRedisV2(MultiSearch multiSearch, List<String> connectionUserIds) {
+    public ArrayNode getUserInfoFromRedisV2(MultiSearch multiSearch, List<String> connectionUserIds, Map<String, Map<String, Object>> userInfoMap) {
         List<String> includeFields = ProfileUtils.getUserDefaultFields();
         Map<String, Object> tagRes = new HashMap<>();
-        ArrayNode arrayRes = getUserInfoFromSearchBasedOnUserIds(multiSearch, includeFields, connectionUserIds);
+        ArrayNode arrayRes = getUserInfoFromSearchBasedOnUserIds(multiSearch, includeFields, connectionUserIds,userInfoMap);
         logger.info("user search result :: {}", new PrettyPrintingMap<>(tagRes));
         return arrayRes;
     }
 
-    private ArrayNode getUserInfoFromSearchBasedOnUserIds(MultiSearch multiSearch, List<String> includeFields, List<String> connectionUserIds) {
+    private ArrayNode getUserInfoFromSearchBasedOnUserIds(MultiSearch multiSearch, List<String> includeFields, List<String> connectionUserIds, Map<String, Map<String, Object>> userInfoMap) {
         ArrayNode arrayRes = JsonNodeFactory.instance.arrayNode();
         try {
             Request request = new Request();
@@ -160,7 +161,7 @@ public class UserUtilityService implements IUserUtility {
             searchQueryMap.put("limit", getLimitRequest(multiSearch.getSize()));
             searchQueryMap.put("fields", includeFields);
             request.setRequest(searchQueryMap);
-            fetchUserDetailsFromLearnerService(connectionUserIds, request, arrayRes);
+            fetchUserDetailsFromLearnerService(connectionUserIds, request, arrayRes,userInfoMap);
         } catch (Exception e) {
             logger.error(String.format("Error while connecting the nodes! error : %s", e));
         }
@@ -168,11 +169,12 @@ public class UserUtilityService implements IUserUtility {
     }
 
 
-    private void fetchUserDetailsFromLearnerService(List<String> connectionUserIds, Request request, ArrayNode arrayRes) {
+    private void fetchUserDetailsFromLearnerService(List<String> connectionUserIds, Request request, ArrayNode arrayRes, Map<String, Map<String, Object>> userInfoMap) {
         ResponseEntity<?> responseEntity = ProfileUtils.getResponseEntity(connectionProperties.getLearnerServiceHost(), connectionProperties.getUserSearchEndPoint(), request);
         JsonNode node = mapper.convertValue(responseEntity.getBody(), JsonNode.class);
         ArrayNode nodes = (ArrayNode) node.get("result").get("response").get("content");
         for (JsonNode n : nodes) {
+
             if (connectionUserIds.contains(n.get(ProfileUtils.Profile.USER_ID).asText())) {
                 JsonNode profileDetails = n.get(ProfileUtils.Profile.PROFILE_DETAILS);
                 if (!ObjectUtils.isEmpty(profileDetails.get(Constants.VERIFIED_KARMAYOGI))) {
@@ -183,17 +185,17 @@ public class UserUtilityService implements IUserUtility {
                 ((ObjectNode) profileDetails).put(ProfileUtils.Profile.USER_ID, n.get(ProfileUtils.Profile.USER_ID).asText());
                 ((ObjectNode) profileDetails).put(ProfileUtils.Profile.ID, n.get(ProfileUtils.Profile.USER_ID).asText());
                 ((ObjectNode) profileDetails).put(ProfileUtils.Profile.AT_ID, n.get(ProfileUtils.Profile.USER_ID).asText());
-                JsonNode organisationsNode = n.get(Constants.ORGANISATIONS);
-                if (organisationsNode != null && !organisationsNode.isNull()) {
-                    ((ObjectNode) profileDetails).set(ProfileUtils.Profile.ORGANISATIONS, organisationsNode);
-                } else {
-                    ((ObjectNode) profileDetails).putArray(ProfileUtils.Profile.ORGANISATIONS);
-                }
                 JsonNode profileImageNode = profileDetails.get(Constants.PROFILE_IMAGE_URL);
                 if (profileImageNode != null && !profileImageNode.isNull()) {
                     ((ObjectNode) profileDetails).put(ProfileUtils.Profile.PROFILE_IMAGE_URL, profileImageNode.asText());
                 } else {
                     ((ObjectNode) profileDetails).put(ProfileUtils.Profile.PROFILE_IMAGE_URL, "");
+                }
+                if(MapUtils.isNotEmpty(userInfoMap)) {
+                    Map<String,Object> userInfo = userInfoMap.get(n.get(ProfileUtils.Profile.USER_ID).asText());
+                    ((ObjectNode) profileDetails).put("role", mapper.valueToTree(userInfo.get("role")));
+                    ((ObjectNode) profileDetails).put("rootOrgId", (String) userInfo.get("organisationId"));
+                    ((ObjectNode) profileDetails).put("designation", (String) userInfo.get("designation"));
                 }
                 arrayRes.add(n.get(ProfileUtils.Profile.PROFILE_DETAILS));
             }

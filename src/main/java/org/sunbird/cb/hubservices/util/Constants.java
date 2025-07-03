@@ -116,6 +116,7 @@ public class Constants {
 	public static final String CONNECTION_REQUESTED = "connectionRequested";
 	public static final String CONNECTION_RECIEVED = "connectionRecieved";
 	public static final String CONNECTION_ESTABLISHED = "connectionEstablished" ;
+	public static final String ROLE = "role" ;
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),

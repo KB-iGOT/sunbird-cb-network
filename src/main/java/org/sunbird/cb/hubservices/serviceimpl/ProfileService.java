@@ -253,10 +253,22 @@ public class ProfileService implements IProfileService {
 	private SBApiResponse enrichUserInformation(Map<String, Object> request, List<Map<String, String>> userList, SBApiResponse response,String userId, String type) {
 		List<String> connectionUserIds = new ArrayList<>();
 		ArrayNode enrichedUserMap;
-		Map<String, Object> enrichedUserMapObj = new HashMap<>();
-		userList.forEach(map -> {
-			if (map.containsKey(Constants.USER_ID)) {
-				connectionUserIds.add(map.get(Constants.USER_ID));
+		Map<String,Map<String,Object>> userInfoMap = new HashMap<>();
+        userList.forEach(userMap -> {
+			if (userMap.containsKey(Constants.USER_ID)) {
+				connectionUserIds.add(userMap.get(Constants.USER_ID));
+				Map<String, Object> userDetails = new HashMap<>();
+				userMap.forEach((key, value) -> {
+					if (!key.equals(Constants.USER_ID)) {
+						if (key.equals(Constants.ROLE) && value != null) {
+							List<String> rolesList = Arrays.asList(value.split(","));
+							userDetails.put(key, rolesList);
+						} else {
+							userDetails.put(key, value);
+						}
+					}
+				});
+				userInfoMap.put(userMap.get(Constants.USER_ID), userDetails);
 			}
 		});
 		MultiSearch mSearchRequest = new MultiSearch();
@@ -285,14 +297,14 @@ public class ProfileService implements IProfileService {
 			List<String> missingUserIds = connectionUserIds.stream()
 					.filter(id -> !userIdsSet.contains(id))
 					.collect(Collectors.toList());
-			ArrayNode userMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, missingUserIds);
+			ArrayNode userMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, missingUserIds,userInfoMap);
 			if (userMap != null && enrichedUserMap != null) {
 				enrichedUserMap.addAll(userMap);
 				redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
 				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
 			}
 		} else {
-			enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds);
+			enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds,userInfoMap);
 			if (enrichedUserMap.size() > 1)
 				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
 		}
