@@ -11,38 +11,36 @@ import org.neo4j.driver.v1.exceptions.AuthenticationException;
 import org.neo4j.driver.v1.exceptions.ServiceUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.sunbird.cb.hubservices.exception.GraphException;
-import org.sunbird.cb.hubservices.util.GraphDbProperties;
+import org.sunbird.cb.hubservices.util.Constants;
+import org.sunbird.cb.hubservices.util.PropertiesCache;
 
 @Configuration
 public class Neo4jConfig {
 
 	private Logger logger = LoggerFactory.getLogger(Neo4jConfig.class);
 
-	@Autowired
-	private GraphDbProperties graphDbProperties;
-
 	@Bean
 	public Driver Neo4jDriver() {
-
 		try {
-			if (Boolean.parseBoolean(graphDbProperties.getNeo4jAuthEnable())) {
-				return GraphDatabase.driver(graphDbProperties.getNeo4jHost(),
-						AuthTokens.basic(graphDbProperties.getNeo4jUserName(), graphDbProperties.getNeo4jPassword()));
+			if (Boolean.parseBoolean(PropertiesCache.getInstance().getProperty(Constants.NEO4J_AUTH_ENABLED))) {
+				return GraphDatabase.driver(PropertiesCache.getInstance().getProperty(Constants.NEO4J_HOST_URL),
+						AuthTokens.basic(PropertiesCache.getInstance().getProperty(Constants.NEO4J_USER_NAME),
+								PropertiesCache.getInstance().getProperty(Constants.NEO4J_PASSWORD)));
 			} else {
+				Integer timeout = Integer.parseInt(PropertiesCache.getInstance().getProperty(Constants.NEO$J_TIMEOUT));
 				Config config = Config.build()
-						.withConnectionTimeout(graphDbProperties.getNeoTimeout(), TimeUnit.SECONDS)
+						.withConnectionTimeout(timeout, TimeUnit.SECONDS)
 						.withConnectionLivenessCheckTimeout(10L, TimeUnit.SECONDS).toConfig();
-				logger.info("Using timeout config of : " + graphDbProperties.getNeoTimeout().toString());
-				return GraphDatabase.driver(graphDbProperties.getNeo4jHost(), config);
+				logger.info("Using timeout config of : " + timeout);
+				return GraphDatabase.driver(PropertiesCache.getInstance().getProperty(Constants.NEO4J_HOST_URL),
+						config);
 			}
-
 		} catch (AuthenticationException | ServiceUnavailableException e) {
+			logger.error("Failed to initialize Neo4J connection. Exception: ", e);
 			throw new GraphException(e.code(), e.getMessage());
 		}
-
 	}
 }
