@@ -196,7 +196,6 @@ public class UserUtilityService implements IUserUtility {
                     ((ObjectNode) profileDetails).put(ProfileUtils.Profile.PROFILE_IMAGE_URL, "");
                 }
                 arrayRes.add(n.get(ProfileUtils.Profile.PROFILE_DETAILS));
-                arrayRes.add(n.get(ProfileUtils.Profile.PROFILE_DETAILS));
             }
         }
     }

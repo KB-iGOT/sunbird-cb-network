@@ -1,8 +1,10 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.slf4j.Logger;
@@ -27,6 +29,7 @@ import org.sunbird.cb.hubservices.util.NetworkServerProperties;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ProfileService implements IProfileService {
@@ -252,6 +255,15 @@ public class ProfileService implements IProfileService {
 	private SBApiResponse enrichUserInformation(Map<String, Object> request, List<Map<String, String>> userList, SBApiResponse response,String userId, String type) {
 		List<String> connectionUserIds = new ArrayList<>();
 		ArrayNode enrichedUserMap;
+		Map<String, Object> enrichedUserMapObj = new HashMap<>();
+		userList.forEach(map -> {
+			if (map.containsKey(Constants.USER_ID)) {
+				connectionUserIds.add(map.get(Constants.USER_ID));
+			}
+		});
+		MultiSearch mSearchRequest = new MultiSearch();
+		mSearchRequest.setOffset((Integer) request.get(Constants.OFFSET));
+		mSearchRequest.setSize((Integer) request.get(Constants.SIZE));
 		String userInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
 		if (!ObjectUtils.isEmpty(userInformation)) {
 			JsonNode jsonNode;
@@ -265,16 +277,24 @@ public class ProfileService implements IProfileService {
 				return response;
 			}
 			enrichedUserMap = (ArrayNode) jsonNode;
-		} else {
-			userList.forEach(map -> {
-				if (map.containsKey(Constants.USER_ID)) {
-					connectionUserIds.add(map.get(Constants.USER_ID));
+			List<String> userIds = new ArrayList<>();
+			if (jsonNode != null) {
+				for (JsonNode n : jsonNode) {
+					userIds.add(n.get("userId").asText());
 				}
-			});
-			MultiSearch mSearchRequest = new MultiSearch();
-			mSearchRequest.setOffset((Integer) request.get(Constants.OFFSET));
-			mSearchRequest.setSize((Integer) request.get(Constants.SIZE));
-			enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest,connectionUserIds);
+			}
+			Set<String> userIdsSet = new HashSet<>(userIds);
+			List<String> missingUserIds = connectionUserIds.stream()
+					.filter(id -> !userIdsSet.contains(id))
+					.collect(Collectors.toList());
+			ArrayNode userMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, missingUserIds);
+			if (userMap != null && enrichedUserMap != null) {
+				enrichedUserMap.addAll(userMap);
+				redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
+				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
+			}
+		} else {
+			enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds);
 			if (enrichedUserMap.size() > 1)
 				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
 		}
