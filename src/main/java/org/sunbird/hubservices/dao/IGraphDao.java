@@ -18,4 +18,41 @@ public interface IGraphDao {
 			int level, int offset, int limit, List<String> attributes);
 
 	Map<String, String> getRelationshipBetweenUsers(String fromUserId, String toUserId);
+
+	/**
+	 * Finds recommendations for a user based on the provided request parameters.
+	 *
+	 * @param userId The ID of the user for whom recommendations are to be found.
+	 * @param request A map containing request parameters for finding recommendations.
+	 * @return A list of maps, each representing a recommendation with relevant details.
+	 */
+	List<Map<String, String>> findRecommendationForUser(String userId, Map<String, Object> request);
+
+	/**
+	 * Finds recommendations for mentors based on the provided request parameters.
+	 *
+	 * @param userId The ID of the user for whom mentor recommendations are to be found.
+	 * @param request A map containing request parameters for finding mentor recommendations.
+	 * @return A list of maps, each representing a mentor recommendation with relevant details.
+	 */
+	List<Map<String, String>> findRecommendationForMentors(String userId, Map<String, Object> request);
+
+	/**
+	 * Finds blocked users based on the provided request parameters.
+	 *
+	 * @param userId The ID of the user for whom blocked users are to be found.
+	 * @param request A map containing request parameters for finding blocked users.
+	 * @return A list of maps, each representing a blocked user with relevant details.
+	 */
+	List<Map<String, String>> findBlockedUsers(String userId, Map<String, Object> request);
+
+	/**
+	 * Get the count of connections by status for a user.
+	 *
+	 * @param userId The ID of the user for whom the connections count is to be fetched.
+	 * @param pending The status of the connections to filter by (e.g., "pending", "accepted").
+	 * @param direction The direction of the connection (e.g., incoming, outgoing).
+	 * @return A map containing the count of connections by status.
+	 */
+	Map<String, Integer> getConnectionsCountByStatus(String userId, String pending, Constants.DIRECTION direction);
 }

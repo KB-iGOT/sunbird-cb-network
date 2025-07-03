@@ -1,8 +1,12 @@
 package org.sunbird.cb.hubservices.util;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+@Getter
+@Setter
 @Component
 public class ConnectionProperties {
 
@@ -90,115 +94,16 @@ public class ConnectionProperties {
 	@Value("${sunbird.user.read.endpoint}")
 	private String userReadEndPoint;
 
-	public String getEsProfileIndex() {
-		return esProfileIndex;
-	}
+	@Value("${user.label.v3}")
+	private String userLabelV3;
 
-	public String getEsProfileIndexType() {
-		return esProfileIndexType;
-	}
+	@Value("${redis.user.connectionRecieved.timeout}")
+	private Integer redisUserConnectionRecievedTimeOut;
 
-	public String[] getEsProfileSourceFields() {
-		return esProfileSourceFields;
-	}
+	@Value("${redis.user.connectionRequested.timeout}")
+	private Integer redisUserConnectionRequestedTimeOut;
 
-	public String getEsHost() {
-		return esHost;
-	}
+	@Value(("${redis.user.connectionEstablished.timeout}"))
+	private Integer redisUserConnectionEstablishedTimeOut;
 
-	public String getEsPort() {
-		return esPort;
-	}
-
-	public String getEsUser() {
-		return esUser;
-	}
-
-	public String getEsPassword() {
-		return esPassword;
-	}
-
-	public String getNotificationTemplateTargetUrlValue() {
-		return notificationTemplateTargetUrlValue;
-	}
-
-	public String getNotificationTemplateSender() {
-		return notificationTemplateSender;
-	}
-
-	public String getNotificationIp() {
-		return notificationIp;
-	}
-
-	public String getNotificationEventEndpoint() {
-		return notificationEventEndpoint;
-	}
-
-	public String getNotificationTemplateTargetUrl() {
-		return notificationTemplateTargetUrl;
-	}
-
-	public String getNotificationTemplateReciepient() {
-		return notificationTemplateReciepient;
-	}
-
-	public String getNotificationv2Sender() {
-		return notificationv2Sender;
-	}
-
-	public String getNotificationv2Id() {
-		return notificationv2Id;
-	}
-
-	public String getNotificationv2DeliveryType() {
-		return notificationv2DeliveryType;
-	}
-
-	public String getNotificationv2RequestBody() {
-		return notificationv2RequestBody;
-	}
-
-	public String getNotificationv2ResponseBody() {
-		return notificationv2ResponseBody;
-	}
-
-	public String getNotificationv2Mode() {
-		return notificationv2Mode;
-	}
-
-	public String getNotificationTemplateRequest() {
-		return notificationTemplateRequest;
-	}
-
-	public String getLearnerServiceHost() {
-		return learnerServiceHost;
-	}
-
-	public String getUserSearchEndPoint() {
-		return userSearchEndPoint;
-	}
-
-	public String getUserUpdateEndPoint() {
-		return userUpdateEndPoint;
-	}
-
-	public String getNotificationTemplateResponse() {
-		return notificationTemplateResponse;
-	}
-
-	public String getNotificationTemplateStatus() {
-		return notificationTemplateStatus;
-	}
-
-	public boolean isNotificationEnabled() {
-		return notificationEnabled;
-	}
-
-	public String getUserReadEndPoint() {
-		return userReadEndPoint;
-	}
-
-	public int getMaxNodeSize() {
-		return maxNodeSize;
-	}
 }

@@ -96,7 +96,26 @@ public class Constants {
 	public static final String ACCEPTED_CONNECTION_REQUEST = "ACCEPTED_CONNECTION_REQUEST";
 	public static final String REJECTED_CONNECTION_REQUEST = "REJECTED_CONNECTION_REQUEST";
 	public static final String ALERT = "ALERT";
-
+	public static final String FIND_RECOMMENDED_V2 = "/v2/find/recommended";
+	public static final String ORGANISATION_ID = "organisationId";
+	public static final String DESIGNATION = "designation";
+	public static final String SIZE = "size";
+	public static final String API_GET_USER_RECOMMENDATIONS_V2 = "api.user.recommendations.v2";
+	public static final String FIND_RECOMMENDED_MENTOR = "/find/recommended/mentors";
+	public static final String API_USER_MENTOR_RECOMMENDATIONS = "api.user.get.mentor.recommendations";
+	public static final String RECOMMENDED_USERS = "recommendedUsers";
+	public static final String PROFILE_DETAILS_PROFILE_IMAGE_URL = "profileDetails.profileImageUrl";
+	public static final String ORGANISATIONS = "organisations";
+	public static final String PROFILE_IMAGE_URL = "profileImageUrl";
+	public static final String MENTORS = "mentors";
+	public static final String USERS = "users";
+	public static final String FETCH_BLOCKED = "/fetch/blocked";
+	public static final String API_GET_BLOCKED_USERS= "api.user.blocked";
+	public static final String BLOCKED_USERS= "blockedUsers";
+	public static final String COUNT = "count";
+	public static final String CONNECTION_REQUESTED = "connectionRequested";
+	public static final String CONNECTION_RECIEVED = "connectionRecieved";
+	public static final String CONNECTION_ESTABLISHED = "connectionEstablished" ;
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),

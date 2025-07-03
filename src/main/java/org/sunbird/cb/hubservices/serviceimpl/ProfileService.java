@@ -1,12 +1,18 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
+import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
 import org.sunbird.cb.hubservices.common.auth.AccessTokenValidator;
 import org.sunbird.cb.hubservices.common.util.ProjectUtil;
 import org.sunbird.cb.hubservices.exception.ApplicationException;
@@ -17,11 +23,11 @@ import org.sunbird.cb.hubservices.service.IConnectionService;
 import org.sunbird.cb.hubservices.service.IProfileService;
 import org.sunbird.cb.hubservices.service.IUserUtility;
 import org.sunbird.cb.hubservices.util.Constants;
+import org.sunbird.cb.hubservices.util.NetworkServerProperties;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ProfileService implements IProfileService {
@@ -37,6 +43,15 @@ public class ProfileService implements IProfileService {
 
 	@Autowired
 	AccessTokenValidator accessTokenValidator;
+
+	@Autowired
+	RedisCacheMgr redisCacheMgr;
+
+	@Autowired
+	NetworkServerProperties networkServerProperties;
+
+	@Autowired
+	ObjectMapper mapper;
 
 	@Override
 	public Response findCommonProfileV2(String userId, int offset, int limit) {
@@ -109,6 +124,219 @@ public class ProfileService implements IProfileService {
 			logger.error(String.format("Error fetching relationship between  in %s %s: %s", fromUserId, toUserId, e));
 			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
 			response.getParams().setErrmsg("Error fetching relationship between users");
+			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			return response;
+		}
+	}
+
+	/**
+	 * This method fetches recommendations for the user based on their connections.
+	 * It validates the access token, checks pagination parameters, and retrieves
+	 * recommended users from the connection service.
+	 *
+	 * @param authToken The authentication token of the user.
+	 * @param request   The request map containing pagination parameters.
+	 * @return SBApiResponse containing the list of recommended users or an error message.
+	 */
+	@Override
+	public SBApiResponse findRecommendations(String authToken, Map<String, Object> request) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_GET_USER_RECOMMENDATIONS_V2);
+		String userId = "";
+		try {
+			userId = accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
+			if (StringUtils.isEmpty(userId)) {
+				return response;
+			}
+			if (validatePaginationParams(request, response)) {
+				return response;
+			}
+			List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
+			if(CollectionUtils.isEmpty(recommendationUsersList)){
+				logger.info("ProfileService : findRecommendations : Recommended Users List is empty for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.OK.toString());
+				response.getResult().put("response","Recommended users list is empty");
+				response.setResponseCode(HttpStatus.OK);
+				return response;
+			}
+			return enrichUserInformation(request, recommendationUsersList, response,userId,Constants.USERS);
+		} catch (Exception e) {
+			logger.error(String.format("ProfileService:findRecommendations:Error while fetching recommendation for the user %s %s", userId, e));
+			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+			response.getParams().setErrmsg("Error while fetching recommendation for the user");
+			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			return response;
+		}
+	}
+
+	/**
+	 * Validates the pagination parameters in the request map.
+	 * Checks if the request is not empty, contains 'offset' and 'size',
+	 * and ensures they are integers.
+	 *
+	 * @param request  The request map containing pagination parameters.
+	 * @param response The SBApiResponse to set error messages and status.
+	 * @return true if validation passes, false otherwise.
+	 */
+	private boolean validatePaginationParams(Map<String, Object> request, SBApiResponse response) {
+		if (MapUtils.isEmpty(request)) {
+			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
+			response.getParams().setErrmsg("Request body cannot be null");
+			response.setResponseCode(HttpStatus.BAD_REQUEST);
+			return true;
+		}
+		if (!request.containsKey("offset") || !request.containsKey("size")) {
+			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
+			response.getParams().setErrmsg("Missing required parameters: offset and size");
+			response.setResponseCode(HttpStatus.BAD_REQUEST);
+			return true;
+		}
+		Object offsetObj = request.get("offset");
+		Object sizeObj = request.get("size");
+		if (!(offsetObj instanceof Integer) || !(sizeObj instanceof Integer)) {
+			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
+			response.getParams().setErrmsg("Parameters offset and size must be integers");
+			response.setResponseCode(HttpStatus.BAD_REQUEST);
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * This method fetches recommendations for mentors based on the Users Organisation.
+	 * It validates the access token, checks pagination parameters, and retrieves
+	 * recommended mentors from the connection service.
+	 *
+	 * @param authToken The authentication token of the user.
+	 * @param request   The request map containing pagination parameters.
+	 * @return SBApiResponse containing the list of recommended mentors or an error message.
+	 */
+	@Override
+	public SBApiResponse findRecommendedMentors(String authToken, Map<String, Object> request) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_USER_MENTOR_RECOMMENDATIONS);
+		String userId = "";
+		try {
+			userId = accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
+			if (StringUtils.isEmpty(userId)) {
+				return response;
+			}
+			if (validatePaginationParams(request, response)) {
+				return response;
+			}
+			List<Map<String, String>> recommendationMentorsList = connectionService.findRecommendationForMentors(userId, request);
+			if(CollectionUtils.isEmpty(recommendationMentorsList)){
+				logger.info("ProfileService : findRecommendedMentors : Recommendation Mentors List is empty for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.OK.toString());
+				response.getResult().put("response","No recommendations found for the user");
+				response.setResponseCode(HttpStatus.OK);
+				return response;
+			}
+			return enrichUserInformation(request, recommendationMentorsList, response,userId,Constants.MENTORS);
+		} catch (Exception e) {
+			logger.error(String.format("ProfileService : findRecommendedMentors :Error while fetching recommendation for the user %s %s", userId, e));
+			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+			response.getParams().setErrmsg("Error while fetching recommendation for the user");
+			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			return response;
+		}
+
+	}
+
+	/**
+	 * Enriches user information by fetching additional details from Redis based on the user IDs
+	 * present in the provided userList. It constructs a MultiSearch request and retrieves user info.
+	 *
+	 * @param request  The request map containing pagination parameters.
+	 * @param userList The list of users to enrich.
+	 * @param response The SBApiResponse to populate with enriched user information.
+	 * @return SBApiResponse containing enriched user information.
+	 */
+	private SBApiResponse enrichUserInformation(Map<String, Object> request, List<Map<String, String>> userList, SBApiResponse response,String userId, String type) {
+		List<String> connectionUserIds = new ArrayList<>();
+		ArrayNode enrichedUserMap;
+		Map<String, Object> enrichedUserMapObj = new HashMap<>();
+		userList.forEach(map -> {
+			if (map.containsKey(Constants.USER_ID)) {
+				connectionUserIds.add(map.get(Constants.USER_ID));
+			}
+		});
+		MultiSearch mSearchRequest = new MultiSearch();
+		mSearchRequest.setOffset((Integer) request.get(Constants.OFFSET));
+		mSearchRequest.setSize((Integer) request.get(Constants.SIZE));
+		String userInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
+		if (!ObjectUtils.isEmpty(userInformation)) {
+			JsonNode jsonNode;
+			try {
+				jsonNode = mapper.readTree(userInformation);
+			} catch (IOException e) {
+				logger.error("ProfileService :enrichUserInformation: Error reading user information from Redis cache", e);
+				response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+				response.getResult().put(Constants.RESPONSE, "Error reading user information from cache");
+				response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+				return response;
+			}
+			enrichedUserMap = (ArrayNode) jsonNode;
+			List<String> userIds = new ArrayList<>();
+			if (jsonNode != null) {
+				for (JsonNode n : jsonNode) {
+					userIds.add(n.get("userId").asText());
+				}
+			}
+			Set<String> userIdsSet = new HashSet<>(userIds);
+			List<String> missingUserIds = connectionUserIds.stream()
+					.filter(id -> !userIdsSet.contains(id))
+					.collect(Collectors.toList());
+			ArrayNode userMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, missingUserIds);
+			if (userMap != null && enrichedUserMap != null) {
+				enrichedUserMap.addAll(userMap);
+				redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
+				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
+			}
+		} else {
+			enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds);
+			if (enrichedUserMap.size() > 1)
+				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
+		}
+		response.getResult().put(Constants.RESPONSE, enrichedUserMap);
+		response.getParams().setStatus(Constants.OK);
+		response.setResponseCode(HttpStatus.OK);
+		return response;
+	}
+
+
+	/** This method fetches the list of blocked users for the authenticated user.
+	 * It validates the access token, checks pagination parameters, and retrieves
+	 * blocked users from the connection service.
+	 *
+	 * @param authToken The authentication token of the user.
+	 * @param request   The request map containing pagination parameters.
+	 * @return SBApiResponse containing the list of blocked users or an error message.
+	 */
+	@Override
+	public SBApiResponse findBlockedUsers(String authToken, Map<String, Object> request) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_GET_BLOCKED_USERS);
+		String userId = "";
+		try {
+			userId = accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
+			if (StringUtils.isEmpty(userId)) {
+				return response;
+			}
+			if (validatePaginationParams(request, response)) {
+				return response;
+			}
+			List<Map<String, String>> blockedUsersList = connectionService.findBlockedUsers(userId, request);
+			if(CollectionUtils.isEmpty(blockedUsersList)){
+				logger.info("ProfileService : findBlockedUsers : Blocked Users List is empty for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.OK.toString());
+				response.getResult().put("response","Blocked users list is empty");
+				response.setResponseCode(HttpStatus.OK);
+				return response;
+			}
+			return enrichUserInformation(request, blockedUsersList, response,userId,Constants.BLOCKED_USERS);
+		}
+		catch (Exception e){
+			logger.error(String.format("ProfileService : findBlockedUsers : Error while fetching blocked user %s %s", userId, e));
+			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+			response.getParams().setErrmsg("Error while fetching blocked user data");
 			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
 			return response;
 		}
