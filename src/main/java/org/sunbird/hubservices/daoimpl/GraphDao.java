@@ -548,7 +548,7 @@ public class GraphDao implements IGraphDao {
                 "AND NOT (u1)--(u2) " +
                 "AND 'MENTOR' IN u2.role " +
                 "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                "u2.designation as designation " +
+                "u2.designation as designation, " +
                 "u2.role as role " +
                 "SKIP $offset LIMIT $size";
         return new Statement(recommendedMentorsQuery, parameters);
