@@ -191,6 +191,12 @@ public class UserUtilityService implements IUserUtility {
                 } else {
                     ((ObjectNode) profileDetails).put(ProfileUtils.Profile.PROFILE_IMAGE_URL, "");
                 }
+                JsonNode profileBannerImageNode = profileDetails.get(Constants.PROFILE_DETAILS_PROFILE_BANNER_IMAGE_URL);
+                if (profileBannerImageNode != null && !profileBannerImageNode.isNull()) {
+                    ((ObjectNode) profileDetails).put(ProfileUtils.Profile.PROFILE_DETAILS_PROFILE_BANNER_IMAGE_URL, profileBannerImageNode.asText());
+                } else {
+                    ((ObjectNode) profileDetails).put(ProfileUtils.Profile.PROFILE_DETAILS_PROFILE_BANNER_IMAGE_URL, "");
+                }
                 if(MapUtils.isNotEmpty(userInfoMap)) {
                     Map<String,Object> userInfo = userInfoMap.get(n.get(ProfileUtils.Profile.USER_ID).asText());
                     ((ObjectNode) profileDetails).put(Constants.ROLE, mapper.valueToTree(userInfo.get(Constants.ROLE)));

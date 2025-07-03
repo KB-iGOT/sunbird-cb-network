@@ -123,6 +123,7 @@ public class Constants {
 	public static final String RESULT = "result";
 	public static final String CONTENT = "content";
 	public static final String ROOT_ORG_ID ="rootOrgId" ;
+	public static final String PROFILE_DETAILS_PROFILE_BANNER_IMAGE_URL = "profileDetails.profileBannerUrl";
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
