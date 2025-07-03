@@ -153,13 +153,13 @@ public class UserUtilityService implements IUserUtility {
             Request request = new Request();
             Map<String, Object> searchQueryMap = new HashMap<>();
             Map<String, Object> additionalProperties = new HashMap<>();
-            additionalProperties.put("userId", connectionUserIds);
-            additionalProperties.put("status", 1);
-            searchQueryMap.put("query", "");
-            searchQueryMap.put("filters", additionalProperties);
-            searchQueryMap.put("offset", multiSearch.getOffset());
-            searchQueryMap.put("limit", getLimitRequest(multiSearch.getSize()));
-            searchQueryMap.put("fields", includeFields);
+            additionalProperties.put(Constants.USER_ID, connectionUserIds);
+            additionalProperties.put(Constants.STATUS, 1);
+            searchQueryMap.put(Constants.QUERY, "");
+            searchQueryMap.put(Constants.FILTERS, additionalProperties);
+            searchQueryMap.put(Constants.OFFSET, multiSearch.getOffset());
+            searchQueryMap.put(Constants.LIMIT, getLimitRequest(multiSearch.getSize()));
+            searchQueryMap.put(Constants.FIELDS, includeFields);
             request.setRequest(searchQueryMap);
             fetchUserDetailsFromLearnerService(connectionUserIds, request, arrayRes,userInfoMap);
         } catch (Exception e) {
@@ -172,7 +172,7 @@ public class UserUtilityService implements IUserUtility {
     private void fetchUserDetailsFromLearnerService(List<String> connectionUserIds, Request request, ArrayNode arrayRes, Map<String, Map<String, Object>> userInfoMap) {
         ResponseEntity<?> responseEntity = ProfileUtils.getResponseEntity(connectionProperties.getLearnerServiceHost(), connectionProperties.getUserSearchEndPoint(), request);
         JsonNode node = mapper.convertValue(responseEntity.getBody(), JsonNode.class);
-        ArrayNode nodes = (ArrayNode) node.get("result").get("response").get("content");
+        ArrayNode nodes = (ArrayNode) node.get(Constants.RESULT).get(Constants.RESPONSE).get(Constants.CONTENT);
         for (JsonNode n : nodes) {
 
             if (connectionUserIds.contains(n.get(ProfileUtils.Profile.USER_ID).asText())) {
@@ -193,9 +193,9 @@ public class UserUtilityService implements IUserUtility {
                 }
                 if(MapUtils.isNotEmpty(userInfoMap)) {
                     Map<String,Object> userInfo = userInfoMap.get(n.get(ProfileUtils.Profile.USER_ID).asText());
-                    ((ObjectNode) profileDetails).put("role", mapper.valueToTree(userInfo.get("role")));
-                    ((ObjectNode) profileDetails).put("rootOrgId", (String) userInfo.get("organisationId"));
-                    ((ObjectNode) profileDetails).put("designation", (String) userInfo.get("designation"));
+                    ((ObjectNode) profileDetails).put(Constants.ROLE, mapper.valueToTree(userInfo.get(Constants.ROLE)));
+                    ((ObjectNode) profileDetails).put(Constants.ROOT_ORG_ID, (String) userInfo.get(Constants.ORGANISATION_ID));
+                    ((ObjectNode) profileDetails).put(Constants.DESIGNATION, (String) userInfo.get(Constants.DESIGNATION));
                 }
                 arrayRes.add(n.get(ProfileUtils.Profile.PROFILE_DETAILS));
             }

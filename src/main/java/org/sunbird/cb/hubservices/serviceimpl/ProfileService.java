@@ -290,7 +290,7 @@ public class ProfileService implements IProfileService {
 			List<String> userIds = new ArrayList<>();
 			if (jsonNode != null) {
 				for (JsonNode n : jsonNode) {
-					userIds.add(n.get("userId").asText());
+					userIds.add(n.get(Constants.USER_ID).asText());
 				}
 			}
 			Set<String> userIdsSet = new HashSet<>(userIds);
