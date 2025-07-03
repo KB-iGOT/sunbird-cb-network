@@ -116,6 +116,11 @@ public class Constants {
 	public static final String CONNECTION_REQUESTED = "connectionRequested";
 	public static final String CONNECTION_RECIEVED = "connectionRecieved";
 	public static final String CONNECTION_ESTABLISHED = "connectionEstablished" ;
+	public static final String NEO4J_AUTH_ENABLED = "neo4j.auth.enable";
+	public static final String NEO4J_HOST_URL = "neo4j.url";
+	public static final String NEO4J_USER_NAME = "neo4j.username";
+	public static final String NEO4J_PASSWORD = "neo4j.password";
+	public static final String NEO$J_TIMEOUT = "neo.timeout";
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
