@@ -308,7 +308,16 @@ public class ProfileService implements IProfileService {
 			if (enrichedUserMap.size() > 1)
 				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
 		}
-		response.getResult().put(Constants.RESPONSE, enrichedUserMap);
+		List<JsonNode> nodes = new ArrayList<>();
+		if(enrichedUserMap!=null && !Constants.BLOCKED_USERS.equalsIgnoreCase(type)) {
+			enrichedUserMap.forEach(nodes::add);
+			Collections.shuffle(nodes);
+			ArrayNode shuffledArrayNode = mapper.createArrayNode();
+			nodes.forEach(shuffledArrayNode::add);
+			response.getResult().put(Constants.RESPONSE, shuffledArrayNode);
+		}else{
+			response.getResult().put(Constants.RESPONSE, enrichedUserMap);
+		}
 		response.getParams().setStatus(Constants.OK);
 		response.setResponseCode(HttpStatus.OK);
 		return response;
