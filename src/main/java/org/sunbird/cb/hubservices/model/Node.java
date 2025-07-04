@@ -9,9 +9,17 @@ public class Node {
 	private String updatedAt;
 	private String fullName;
 	private String departmentName;
+	private String status;
 
 	public Node(String id) {
 		this.id = id;
+	}
+
+	public Node(String id,String createdAt,String updatedAt,String status){
+		this.id = id;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.status = status;
 	}
 
 	public String getId() {
@@ -26,7 +34,6 @@ public class Node {
 		return createdAt;
 	}
 
-	@JsonIgnore
 	public void setCreatedAt(String createdAt) {
 		this.createdAt = createdAt;
 	}
@@ -56,5 +63,11 @@ public class Node {
 		this.departmentName = departmentName;
 	}
 
-	
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
 }

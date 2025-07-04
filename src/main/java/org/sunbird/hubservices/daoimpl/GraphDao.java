@@ -214,6 +214,9 @@ public class GraphDao implements IGraphDao {
                 // TODO: optimise
 
                 String id = null;
+                String createdAt = null;
+                String updatedAt = null;
+                String status = null;
                 for (String k : record.keys()) {
                     org.neo4j.driver.v1.types.Type t = record.get(k).type();
                     if (t.equals(TYPE_SYSTEM.NODE())) {
@@ -225,13 +228,18 @@ public class GraphDao implements IGraphDao {
                     } else if (t.equals(TYPE_SYSTEM.STRING()) && k.contains(Constants.Graph.ID.getValue())) {
                         id = record.get(k).asString();
 
+                    } else if( t.equals(TYPE_SYSTEM.RELATIONSHIP())){
+                        org.neo4j.driver.v1.types.Relationship node =  record.get(k).asRelationship();
+                        createdAt = node.get("createdAt") != null ? node.get("createdAt").asString() : null;
+                        updatedAt = node.get("updatedAt") != null ? node.get("updatedAt").asString() : null;
+                        status = node.get("status") != null ? node.get("status").asString() : null;
                     } else {
                         throw new GraphException(ErrorCode.MISSING_PROPERTY_ERROR.name(),
                                 "Missing {id} mandatory field");
                     }
 
                 }
-                Node nodePojo = new Node(id);
+                Node nodePojo = new Node(id, createdAt, updatedAt, status);
                 nodes.add(nodePojo);
 
             }
@@ -280,6 +288,7 @@ public class GraphDao implements IGraphDao {
                             attribute -> sb.append("n").append(level).append(".").append(attribute).append(","));
                     sb.deleteCharAt(sb.length() - 1);
                 } else {
+                    sb.append("r").append(level - 1).append(",");
                     sb.append("n").append(level);
                 }
                 query.append(sb).append(" Skip ").append(offset).append(" limit ").append(limit);
