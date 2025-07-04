@@ -221,10 +221,10 @@ public class GraphDao implements IGraphDao {
                     org.neo4j.driver.v1.types.Type t = record.get(k).type();
                     if (t.equals(TYPE_SYSTEM.NODE())) {
                         org.neo4j.driver.v1.types.Node node = record.get(k).asNode();
-                        if (node.get(Constants.Graph.ID.getValue()) == null)
+                        if (node.get(Constants.Graph.USER_ID.getValue()) == null)
                             throw new GraphException(ErrorCode.MISSING_PROPERTY_ERROR.name(),
                                     "Missing {id} mandatory field");
-                        id = node.get(Constants.Graph.ID.getValue()).asString();
+                        id = node.get(Constants.Graph.USER_ID.getValue()).asString();
                     } else if (t.equals(TYPE_SYSTEM.STRING()) && k.contains(Constants.Graph.ID.getValue())) {
                         id = record.get(k).asString();
 

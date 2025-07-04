@@ -132,7 +132,7 @@ public class Constants {
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
-		UPDATED_AT("updatedAt");
+		UPDATED_AT("updatedAt"), USER_ID("userId");
 
 		private String value;
 
