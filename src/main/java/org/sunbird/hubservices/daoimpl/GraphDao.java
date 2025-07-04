@@ -646,22 +646,22 @@ public class GraphDao implements IGraphDao {
             parameters.put(Constants.USER_ID, userId);
             parameters.put(Constants.STATUS, status);
 
-            StringBuilder countQuery = new StringBuilder();
+            StringBuilder countQuery;
             if (direction ==Constants.DIRECTION.OUT) {
                 // Count outgoing connections (user → other)
-                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]->(other:" +
+                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]->(other:" +
                         connectionProperties.getUserLabelV3() + ") " +
                         "WHERE u.userId = $userId AND r.status = $status " +
                         "RETURN COUNT(r) AS count");
             } else if (direction == Constants.DIRECTION.IN) {
                 // Count incoming connections (other → user)
-                countQuery = new StringBuilder("MATCH (other:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]->(u:" +
+                countQuery = new StringBuilder("MATCH (other:" + connectionProperties.getUserLabelV3() + ")-[r:connect]->(u:" +
                         connectionProperties.getUserLabelV3() + ") " +
                         "WHERE u.userId = $userId AND r.status = $status " +
                         "RETURN COUNT(r) AS count");
             } else {
                 // Count connections in both directions
-                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]-(other:" +
+                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]-(other:" +
                         connectionProperties.getUserLabelV3() + ") " +
                         "WHERE u.userId = $userId AND r.status = $status " +
                         "RETURN COUNT(r) AS count");
