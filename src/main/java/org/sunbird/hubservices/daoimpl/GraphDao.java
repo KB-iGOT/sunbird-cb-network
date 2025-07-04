@@ -286,6 +286,7 @@ public class GraphDao implements IGraphDao {
                 if (!CollectionUtils.isEmpty(attributes)) {
                     attributes.forEach(
                             attribute -> sb.append("n").append(level).append(".").append(attribute).append(","));
+                    sb.append("r").append(level - 1).append(",");
                     sb.deleteCharAt(sb.length() - 1);
                 } else {
                     sb.append("r").append(level - 1).append(",");
