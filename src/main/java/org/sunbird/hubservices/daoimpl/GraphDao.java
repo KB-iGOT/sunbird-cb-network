@@ -354,8 +354,7 @@ public class GraphDao implements IGraphDao {
         Map<String, String> recommendationData;
         List<Map<String, String>> recommendationList = null;
         try (Session session = neo4jDriver.session()) {
-            List<Record> recordsFromSameOrg = fetchRecommendationFromSameOrg(userId, request, session);
-            List<Record> recordsComplete = fetchRecommendationDifferentOrgSameDesignations(userId, request, session, recordsFromSameOrg);
+            List<Record> recordsComplete = fetchRecommendationBasedOnOrgAndDesignation(userId, request, session);
             if (!CollectionUtils.isEmpty(recordsComplete)) {
                 recommendationList = new ArrayList<>();
                 for (Record record : recordsComplete) {
@@ -380,82 +379,14 @@ public class GraphDao implements IGraphDao {
     }
 
     /**
-     * Fetches recommendations for a user from different organizations with the same designations.
+     * Fetches recommendations for a user based on the same organization and designation.
      *
-     * @param userId                The ID of the user for whom recommendations are to be fetched.
-     * @param request               The request parameters containing pagination details.
-     * @param session               The Neo4j session to execute the query.
-     * @param recordsFromSameOrg    List of records from the same organization, if any.
-     * @return A list of records containing userId, organisationId, and designation.
+     * @param userId  The ID of the user for whom recommendations are to be fetched.
+     * @param request A map containing request parameters such as size and offset.
+     * @param session The Neo4j session to use for the query.
+     * @return A list of records containing recommendation data.
      */
-    private List<Record> fetchRecommendationDifferentOrgSameDesignations(String userId, Map<String, Object> request, Session session, List<Record> recordsFromSameOrg) {
-        Map<String, Object> parameters = new HashMap<>();
-        parameters.put(Constants.USER_ID, userId);
-        String designationQuery;
-        try (Transaction transaction = session.beginTransaction()) {
-            if (recordsFromSameOrg.isEmpty()) {
-                int size = (Integer) request.get(Constants.SIZE);
-                int offset = Math.max(0, (Integer) request.get(Constants.OFFSET));
-                if (offset != 0) {
-                    offset = (offset * size) + 1;
-                }
-                parameters.put(Constants.SIZE, size);
-                parameters.put(Constants.OFFSET, offset);
-                designationQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
-                        "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                        "WHERE u2.designation = u1.designation " +
-                        "AND u2.userId <> u1.userId " +
-                        "AND NOT (u1)--(u2) " +
-                        "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                        "u2.designation as designation, " +
-                        "u2.role as role " +
-                        "SKIP $offset LIMIT $size";
-            } else {
-                int existingRecordsSize = recordsFromSameOrg.size();
-                int size = (Integer) request.get(Constants.SIZE) - existingRecordsSize;
-                if (size != 0) {
-                    List<String> foundUserIds = new ArrayList<>();
-                    for (Record record : recordsFromSameOrg) {
-                        foundUserIds.add(record.get(Constants.USER_ID).asString());
-                    }
-                    parameters.put(Constants.SIZE, size);
-                    parameters.put(Constants.OFFSET, 1);
-                    parameters.put("foundUsers", foundUserIds);
-                    designationQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
-                            "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                            "WHERE u2.designation = u1.designation " +
-                            "AND u2.userId <> u1.userId " +
-                            "AND NOT (u1)--(u2) " +
-                            "AND NOT u2.userId IN $foundUsers " +
-                            "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                            "u2.designation as designation, " +
-                            "u2.role as role " +
-                            "SKIP $offset LIMIT $size";
-                } else {
-                    return recordsFromSameOrg;
-                }
-            }
-            Statement statement = new Statement(designationQuery, parameters);
-            StatementResult result = transaction.run(statement);
-            List<Record> newRecords = result.list();
-            recordsFromSameOrg.addAll(newRecords);
-            result.consume();
-            return recordsFromSameOrg;
-        } catch (Exception e) {
-            logger.error("Error finding recommendations for user {}: {}", userId, e.getMessage());
-        }
-        return null;
-    }
-
-    /**
-     * Fetches recommendations for a user from the same organization.
-     *
-     * @param userId   The ID of the user for whom recommendations are to be fetched.
-     * @param request  The request parameters containing pagination details.
-     * @param session  The Neo4j session to execute the query.
-     * @return A list of records containing userId, organisationId, and designation.
-     */
-    private List<Record> fetchRecommendationFromSameOrg(String userId, Map<String, Object> request, Session session) {
+    private List<Record> fetchRecommendationBasedOnOrgAndDesignation(String userId, Map<String, Object> request, Session session) {
         try (Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
@@ -485,13 +416,19 @@ public class GraphDao implements IGraphDao {
      */
     private Statement getStatementForRecommendationFromSameOrg(Map<String, Object> parameters) {
         String orgQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
+                "WITH u1 " +
                 "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                "WHERE u2.organisationId = u1.organisationId " +
-                "AND u2.userId <> u1.userId " +
-                "AND NOT (u1)--(u2) " +
-                "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                "u2.designation as designation, " +
-                "u2.role as role " +
+                "WHERE ( " +
+                "    (u2.organisationId = u1.organisationId AND u2.userId <> u1.userId) " +
+                "    OR " +
+                "    (u2.designation = u1.designation AND u2.organisationId <> u1.organisationId AND u2.userId <> u1.userId) " +
+                ") " +
+                "OPTIONAL MATCH (u1)-[r]-(u2) " +
+                "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
+                "RETURN u2.userId AS userId, " +
+                "       u2.organisationId AS organisationId, " +
+                "       u2.designation AS designation, " +
+                "       u2.role AS role " +
                 "SKIP $offset LIMIT $size";
         return new Statement(orgQuery, parameters);
     }
