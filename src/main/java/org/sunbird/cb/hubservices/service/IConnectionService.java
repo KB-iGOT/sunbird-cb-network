@@ -110,4 +110,12 @@ public interface IConnectionService {
 	 * @return List of blocked users
 	 */
 	List<Map<String, String>> findBlockedUsers(String userId, Map<String, Object> request);
+
+	/**
+	 * Get the count of connections by status for a user.
+	 *
+	 * @param userId The ID of the user for whom the connections count is to be fetched.
+	 * @return A map containing the count of connections by status.
+	 */
+	Integer getCoundForRecommendedUsers(String userId);
 }

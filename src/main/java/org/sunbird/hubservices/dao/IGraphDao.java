@@ -55,4 +55,12 @@ public interface IGraphDao {
 	 * @return A map containing the count of connections by status.
 	 */
 	Map<String, Integer> getConnectionsCountByStatus(String userId, String pending, Constants.DIRECTION direction);
+
+	/**
+	 * Get the count of recommended users for a given user.
+	 *
+	 * @param userId The ID of the user for whom the recommended users count is to be fetched.
+	 * @return An integer representing the count of recommended users.
+	 */
+	Integer getCoundForRecommendedUsers(String userId);
 }

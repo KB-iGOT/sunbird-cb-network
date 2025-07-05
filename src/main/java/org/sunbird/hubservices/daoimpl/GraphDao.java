@@ -616,4 +616,38 @@ public class GraphDao implements IGraphDao {
         }
         return new HashMap<>();
     }
+
+    /**
+     * Gets the count of recommended users for a given user based on organization and designation.
+     *
+     * @param userId The ID of the user for whom the count of recommended users is to be fetched.
+     * @return The count of recommended users.
+     */
+    @Override
+    public Integer getCoundForRecommendedUsers(String userId) {
+        try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put(Constants.USER_ID, userId);
+            String countQuery =
+                    "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
+                            "WITH u1 " +
+                            "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
+                            "WHERE ( " +
+                            "    (u2.organisationId = u1.organisationId AND u2.userId <> u1.userId) " +
+                            "    OR " +
+                            "    (u2.designation = u1.designation AND u2.organisationId <> u1.organisationId AND u2.userId <> u1.userId) " +
+                            ") " +
+                            "OPTIONAL MATCH (u1)-[r]-(u2) " +
+                            "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
+                            "RETURN count(u2) AS totalCount";
+            Statement statement = new Statement(countQuery, parameters);
+            StatementResult result = transaction.run(statement);
+            Record record = result.single();
+            result.consume();
+            return record.get(Constants.COUNT).asInt();
+        } catch (Exception e) {
+            logger.error(String.format("Error fetching connections count for recommended user %s: %s", userId, e));
+        }
+        return 0;
+    }
 }
