@@ -154,7 +154,7 @@ public class ProfileService implements IProfileService {
 			if(count == 0){
 				logger.info("ProfileService : findRecommendations : Recommended Users Count is 0 for userId: {}", userId);
 				response.getParams().setStatus(HttpStatus.OK.toString());
-				response.getResult().put(Constants.RESPONSE,"Recommended users count is empty");
+				response.getResult().put(Constants.MESSAGE,"Recommended users count is empty");
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
@@ -162,7 +162,7 @@ public class ProfileService implements IProfileService {
 			if(CollectionUtils.isEmpty(recommendationUsersList)){
 				logger.info("ProfileService : findRecommendations : Recommended Users List is empty for userId: {}", userId);
 				response.getParams().setStatus(HttpStatus.OK.toString());
-				response.getResult().put(Constants.RESPONSE,"Recommended users list is empty");
+				response.getResult().put(Constants.MESSAGE,"Recommended users list is empty");
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
@@ -236,7 +236,7 @@ public class ProfileService implements IProfileService {
 			if(CollectionUtils.isEmpty(recommendationMentorsList)){
 				logger.info("ProfileService : findRecommendedMentors : Recommendation Mentors List is empty for userId: {}", userId);
 				response.getParams().setStatus(HttpStatus.OK.toString());
-				response.getResult().put("response","No recommendations found for the user");
+				response.getResult().put(Constants.MESSAGE,"No recommendations found for the user");
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
@@ -358,7 +358,7 @@ public class ProfileService implements IProfileService {
 			if(CollectionUtils.isEmpty(blockedUsersList)){
 				logger.info("ProfileService : findBlockedUsers : Blocked Users List is empty for userId: {}", userId);
 				response.getParams().setStatus(HttpStatus.OK.toString());
-				response.getResult().put("response","Blocked users list is empty");
+				response.getResult().put(Constants.MESSAGE,"Blocked users list is empty");
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
