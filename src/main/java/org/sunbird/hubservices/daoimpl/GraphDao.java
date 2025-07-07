@@ -644,7 +644,8 @@ public class GraphDao implements IGraphDao {
             StatementResult result = transaction.run(statement);
             Record record = result.single();
             result.consume();
-            return record.get(Constants.COUNT).asInt();
+            Value countValue = record.get(Constants.TOTAL_COUNT);
+            return countValue.isNull() ? 0 : countValue.asInt();
         } catch (Exception e) {
             logger.error(String.format("Error fetching connections count for recommended user %s: %s", userId, e));
         }
