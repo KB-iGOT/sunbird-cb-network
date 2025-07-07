@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
@@ -187,6 +188,7 @@ public class ConnectionService implements IConnectionService {
 			Map<String, String> relationProperties = new HashMap<>();
 			relationProperties.put(Constants.Graph.STATUS.getValue(), status);
 			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit, null);
+
 			int count = nodeService.getNodesCount(userId, relationProperties, null);
 			Map<String,Integer> userCount = new HashMap<>();
 			String connectionEstablishedInformation = redisCacheMgr.getCache(
@@ -280,7 +282,7 @@ public class ConnectionService implements IConnectionService {
 		List<String> userIds = nodes.stream().map(Node::getId).collect(Collectors.toList());
 		Map<String, Node> nodeMap = nodes.stream().collect(Collectors.toMap(Node::getId, node -> node));
 
-		List<String> fields = Arrays.asList(Constants.ID, Constants.FIRST_NAME, Constants.STATUS, Constants.CHANNEL);
+		List<String> fields = Arrays.asList(Constants.ID, Constants.FIRST_NAME, Constants.STATUS, Constants.CHANNEL,Constants.PROFILE_DETAILS);
 		Map<String, Object> propertyMap = new HashMap<>();
 		int loopSize = 50;
 		for (int i = 0; i < userIds.size(); i += loopSize) {
@@ -300,6 +302,31 @@ public class ConnectionService implements IConnectionService {
 							Node node = nodeMap.get(userId);
 							node.setFullName((String) user.get(Constants.FULL_NAME));
 							node.setDepartmentName((String) user.get(Constants.CHANNEL));
+							JsonNode root = objectMapper.readTree((String) user.get(Constants.PROFILE_DETAILS));
+							if (root != null) {
+								if (root.hasNonNull(Constants.PROFESSIONAL_DETAILS)) {
+									List<Map<String, Object>> professionalDetails = objectMapper.readValue(
+											root.get(Constants.PROFESSIONAL_DETAILS).toString(),
+											new TypeReference<List<Map<String, Object>>>() {}
+									);
+									node.setProfessionalDetails(professionalDetails);
+								}
+								if (root.hasNonNull(Constants.EMPLOYMENT_DETAILS)) {
+									Map<String, Object> employmentDetails = objectMapper.readValue(
+											root.get(Constants.EMPLOYMENT_DETAILS).toString(),
+											new TypeReference<Map<String, Object>>() {}
+									);
+									node.setEmploymentDetails(employmentDetails);
+								}
+								if (root.hasNonNull(Constants.PROFILE_IMAGE_URL)) {
+									String profileImageUrl = root.get(Constants.PROFILE_IMAGE_URL).asText();
+									node.setProfileImageUrl(profileImageUrl);
+								}
+								if (root.hasNonNull(Constants.PROFILE_BANNER_URL)) {
+									String profileBannerUrl = root.get(Constants.PROFILE_BANNER_URL).asText();
+									node.setProfileBannerUrl(profileBannerUrl);
+								}
+							}
 						}
 					}
 				}

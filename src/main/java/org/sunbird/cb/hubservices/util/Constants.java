@@ -130,6 +130,10 @@ public class Constants {
 	public static final String NEO4J_PASSWORD = "neo4j.password";
 	public static final String NEO$J_TIMEOUT = "neo.timeout";
 	public static final String TOTAL_COUNT = "totalCount";
+	public static final String PROFILE_DETAILS = "profiledetails";
+	public static final String PROFESSIONAL_DETAILS = "professionalDetails";
+	public static final String EMPLOYMENT_DETAILS = "employmentDetails";
+	public static final String PROFILE_BANNER_URL = "profileBannerUrl";
 
 	public enum Graph {
 		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
