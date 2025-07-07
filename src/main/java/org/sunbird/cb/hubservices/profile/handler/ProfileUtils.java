@@ -37,6 +37,7 @@ public class ProfileUtils {
 		userFields.add(Constants.USER_ID);
 		userFields.add(Constants.PROFILE_DETAILS_PROFILE_IMAGE_URL);
 		userFields.add(Constants.ORGANISATIONS);
+		userFields.add(Constants.PROFILE_DETAILS_PROFILE_BANNER_IMAGE_URL);
 		return userFields;
 	}
 
@@ -88,7 +89,7 @@ public class ProfileUtils {
 		public static final String PROFILE_DETAILS = "profileDetails";
 		public static final String PROFESSIONAL_DETAILS = "professionalDetails";
 		public static final String PROFILE_IMAGE_URL = "profileImageUrl";
-		public static final String ORGANISATIONS = "organisations";
+		public static final String PROFILE_DETAILS_PROFILE_BANNER_IMAGE_URL = "profileBannerUrl";
 
 	}
 

@@ -10,5 +10,5 @@ public interface IUserUtility {
 
     Map<String, Object> getUserInfoFromRedish(MultiSearch multiSearch, String[] sourceField, List<String> connectionIdsToExclude);
 
-    ArrayNode getUserInfoFromRedisV2(MultiSearch multiSearch, List<String> connectionUserIds);
+    ArrayNode getUserInfoFromRedisV2(MultiSearch multiSearch, List<String> connectionUserIds, Map<String, Map<String, Object>> userInfoMap);
 }

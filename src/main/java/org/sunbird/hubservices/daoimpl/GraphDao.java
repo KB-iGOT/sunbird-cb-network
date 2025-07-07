@@ -9,12 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import org.neo4j.driver.v1.Driver;
-import org.neo4j.driver.v1.Record;
-import org.neo4j.driver.v1.Session;
-import org.neo4j.driver.v1.Statement;
-import org.neo4j.driver.v1.StatementResult;
-import org.neo4j.driver.v1.Transaction;
+import org.neo4j.driver.v1.*;
 import org.neo4j.driver.v1.exceptions.ClientException;
 import org.neo4j.driver.v1.exceptions.SessionExpiredException;
 import org.slf4j.Logger;
@@ -219,24 +214,32 @@ public class GraphDao implements IGraphDao {
                 // TODO: optimise
 
                 String id = null;
+                String createdAt = null;
+                String updatedAt = null;
+                String status = null;
                 for (String k : record.keys()) {
                     org.neo4j.driver.v1.types.Type t = record.get(k).type();
                     if (t.equals(TYPE_SYSTEM.NODE())) {
                         org.neo4j.driver.v1.types.Node node = record.get(k).asNode();
-                        if (node.get(Constants.Graph.ID.getValue()) == null)
+                        if (node.get(Constants.Graph.USER_ID.getValue()) == null)
                             throw new GraphException(ErrorCode.MISSING_PROPERTY_ERROR.name(),
                                     "Missing {id} mandatory field");
-                        id = node.get(Constants.Graph.ID.getValue()).asString();
+                        id = node.get(Constants.Graph.USER_ID.getValue()).asString();
                     } else if (t.equals(TYPE_SYSTEM.STRING()) && k.contains(Constants.Graph.ID.getValue())) {
                         id = record.get(k).asString();
 
+                    } else if( t.equals(TYPE_SYSTEM.RELATIONSHIP())){
+                        org.neo4j.driver.v1.types.Relationship node =  record.get(k).asRelationship();
+                        createdAt = node.get("createdAt") != null ? node.get("createdAt").asString() : null;
+                        updatedAt = node.get("updatedAt") != null ? node.get("updatedAt").asString() : null;
+                        status = node.get("status") != null ? node.get("status").asString() : null;
                     } else {
                         throw new GraphException(ErrorCode.MISSING_PROPERTY_ERROR.name(),
                                 "Missing {id} mandatory field");
                     }
 
                 }
-                Node nodePojo = new Node(id);
+                Node nodePojo = new Node(id, createdAt, updatedAt, status);
                 nodes.add(nodePojo);
 
             }
@@ -283,8 +286,10 @@ public class GraphDao implements IGraphDao {
                 if (!CollectionUtils.isEmpty(attributes)) {
                     attributes.forEach(
                             attribute -> sb.append("n").append(level).append(".").append(attribute).append(","));
+                    sb.append("r").append(level - 1).append(",");
                     sb.deleteCharAt(sb.length() - 1);
                 } else {
+                    sb.append("r").append(level - 1).append(",");
                     sb.append("n").append(level);
                 }
                 query.append(sb).append(" Skip ").append(offset).append(" limit ").append(limit);
@@ -349,8 +354,7 @@ public class GraphDao implements IGraphDao {
         Map<String, String> recommendationData;
         List<Map<String, String>> recommendationList = null;
         try (Session session = neo4jDriver.session()) {
-            List<Record> recordsFromSameOrg = fetchRecommendationFromSameOrg(userId, request, session);
-            List<Record> recordsComplete = fetchRecommendationDifferentOrgSameDesignations(userId, request, session, recordsFromSameOrg);
+            List<Record> recordsComplete = fetchRecommendationBasedOnOrgAndDesignation(userId, request, session);
             if (!CollectionUtils.isEmpty(recordsComplete)) {
                 recommendationList = new ArrayList<>();
                 for (Record record : recordsComplete) {
@@ -358,6 +362,13 @@ public class GraphDao implements IGraphDao {
                     recommendationData.put(Constants.USER_ID, record.get(Constants.USER_ID).asString());
                     recommendationData.put(Constants.ORGANISATION_ID, record.get(Constants.ORGANISATION_ID).asString());
                     recommendationData.put(Constants.DESIGNATION, record.get(Constants.DESIGNATION).asString());
+                    if (!record.get(Constants.ROLE).isNull()) {
+                        List<String> rolesList = record.get(Constants.ROLE).asList(Value::asString);
+                        String rolesString = String.join(",", rolesList);
+                        recommendationData.put(Constants.ROLE, rolesString);
+                    } else {
+                        recommendationData.put(Constants.ROLE, "");
+                    }
                     recommendationList.add(recommendationData);
                 }
                 logger.info("Recommendations for user {} fetched successfully. Found {} recommendations",
@@ -368,80 +379,14 @@ public class GraphDao implements IGraphDao {
     }
 
     /**
-     * Fetches recommendations for a user from different organizations with the same designations.
+     * Fetches recommendations for a user based on the same organization and designation.
      *
-     * @param userId                The ID of the user for whom recommendations are to be fetched.
-     * @param request               The request parameters containing pagination details.
-     * @param session               The Neo4j session to execute the query.
-     * @param recordsFromSameOrg    List of records from the same organization, if any.
-     * @return A list of records containing userId, organisationId, and designation.
+     * @param userId  The ID of the user for whom recommendations are to be fetched.
+     * @param request A map containing request parameters such as size and offset.
+     * @param session The Neo4j session to use for the query.
+     * @return A list of records containing recommendation data.
      */
-    private List<Record> fetchRecommendationDifferentOrgSameDesignations(String userId, Map<String, Object> request, Session session, List<Record> recordsFromSameOrg) {
-        Map<String, Object> parameters = new HashMap<>();
-        parameters.put(Constants.USER_ID, userId);
-        String designationQuery;
-        try (Transaction transaction = session.beginTransaction()) {
-            if (recordsFromSameOrg.isEmpty()) {
-                int size = (Integer) request.get(Constants.SIZE);
-                int offset = Math.max(0, (Integer) request.get(Constants.OFFSET));
-                if (offset != 0) {
-                    offset = (offset * size) + 1;
-                }
-                parameters.put(Constants.SIZE, size);
-                parameters.put(Constants.OFFSET, offset);
-                designationQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
-                        "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                        "WHERE u2.designation = u1.designation " +
-                        "AND u2.userId <> u1.userId " +
-                        "AND NOT (u1)--(u2) " +
-                        "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                        "u2.designation as designation " +
-                        "SKIP $offset LIMIT $size";
-            } else {
-                int existingRecordsSize = recordsFromSameOrg.size();
-                int size = (Integer) request.get(Constants.SIZE) - existingRecordsSize;
-                if (size != 0) {
-                    List<String> foundUserIds = new ArrayList<>();
-                    for (Record record : recordsFromSameOrg) {
-                        foundUserIds.add(record.get(Constants.USER_ID).asString());
-                    }
-                    parameters.put(Constants.SIZE, size);
-                    parameters.put(Constants.OFFSET, 1);
-                    parameters.put("foundUsers", foundUserIds);
-                    designationQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
-                            "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                            "WHERE u2.designation = u1.designation " +
-                            "AND u2.userId <> u1.userId " +
-                            "AND NOT (u1)--(u2) " +
-                            "AND NOT u2.userId IN $foundUsers " +
-                            "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                            "u2.designation as designation " +
-                            "SKIP $offset LIMIT $size";
-                } else {
-                    return recordsFromSameOrg;
-                }
-            }
-            Statement statement = new Statement(designationQuery, parameters);
-            StatementResult result = transaction.run(statement);
-            List<Record> newRecords = result.list();
-            recordsFromSameOrg.addAll(newRecords);
-            result.consume();
-            return recordsFromSameOrg;
-        } catch (Exception e) {
-            logger.error("Error finding recommendations for user {}: {}", userId, e.getMessage());
-        }
-        return null;
-    }
-
-    /**
-     * Fetches recommendations for a user from the same organization.
-     *
-     * @param userId   The ID of the user for whom recommendations are to be fetched.
-     * @param request  The request parameters containing pagination details.
-     * @param session  The Neo4j session to execute the query.
-     * @return A list of records containing userId, organisationId, and designation.
-     */
-    private List<Record> fetchRecommendationFromSameOrg(String userId, Map<String, Object> request, Session session) {
+    private List<Record> fetchRecommendationBasedOnOrgAndDesignation(String userId, Map<String, Object> request, Session session) {
         try (Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
@@ -471,12 +416,19 @@ public class GraphDao implements IGraphDao {
      */
     private Statement getStatementForRecommendationFromSameOrg(Map<String, Object> parameters) {
         String orgQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
+                "WITH u1 " +
                 "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                "WHERE u2.organisationId = u1.organisationId " +
-                "AND u2.userId <> u1.userId " +
-                "AND NOT (u1)--(u2) " +
-                "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                "u2.designation as designation " +
+                "WHERE ( " +
+                "    (u2.organisationId = u1.organisationId AND u2.userId <> u1.userId) " +
+                "    OR " +
+                "    (u2.designation = u1.designation AND u2.organisationId <> u1.organisationId AND u2.userId <> u1.userId) " +
+                ") " +
+                "OPTIONAL MATCH (u1)-[r]-(u2) " +
+                "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
+                "RETURN u2.userId AS userId, " +
+                "       u2.organisationId AS organisationId, " +
+                "       u2.designation AS designation, " +
+                "       u2.role AS role " +
                 "SKIP $offset LIMIT $size";
         return new Statement(orgQuery, parameters);
     }
@@ -513,6 +465,13 @@ public class GraphDao implements IGraphDao {
                     recommendationData.put(Constants.USER_ID, record.get(Constants.USER_ID).asString());
                     recommendationData.put(Constants.ORGANISATION_ID, record.get(Constants.ORGANISATION_ID).asString());
                     recommendationData.put(Constants.DESIGNATION, record.get(Constants.DESIGNATION).asString());
+                    if (!record.get(Constants.ROLE).isNull()) {
+                        List<String> rolesList = record.get(Constants.ROLE).asList(Value::asString);
+                        String rolesString = String.join(",", rolesList);
+                        recommendationData.put(Constants.ROLE, rolesString);
+                    } else {
+                        recommendationData.put(Constants.ROLE, "");
+                    }
                     recommendationList.add(recommendationData);
                 }
                 logger.info("Recommendations for user {} fetched successfully. Found {} recommendations",
@@ -536,7 +495,8 @@ public class GraphDao implements IGraphDao {
                 "AND NOT (u1)--(u2) " +
                 "AND 'MENTOR' IN u2.role " +
                 "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                "u2.designation as designation " +
+                "u2.designation as designation, " +
+                "u2.role as role " +
                 "SKIP $offset LIMIT $size";
         return new Statement(recommendedMentorsQuery, parameters);
     }
@@ -623,22 +583,22 @@ public class GraphDao implements IGraphDao {
             parameters.put(Constants.USER_ID, userId);
             parameters.put(Constants.STATUS, status);
 
-            StringBuilder countQuery = new StringBuilder();
+            StringBuilder countQuery;
             if (direction ==Constants.DIRECTION.OUT) {
                 // Count outgoing connections (user → other)
-                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]->(other:" +
+                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]->(other:" +
                         connectionProperties.getUserLabelV3() + ") " +
                         "WHERE u.userId = $userId AND r.status = $status " +
                         "RETURN COUNT(r) AS count");
             } else if (direction == Constants.DIRECTION.IN) {
                 // Count incoming connections (other → user)
-                countQuery = new StringBuilder("MATCH (other:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]->(u:" +
+                countQuery = new StringBuilder("MATCH (other:" + connectionProperties.getUserLabelV3() + ")-[r:connect]->(u:" +
                         connectionProperties.getUserLabelV3() + ") " +
                         "WHERE u.userId = $userId AND r.status = $status " +
                         "RETURN COUNT(r) AS count");
             } else {
                 // Count connections in both directions
-                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]-(other:" +
+                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]-(other:" +
                         connectionProperties.getUserLabelV3() + ") " +
                         "WHERE u.userId = $userId AND r.status = $status " +
                         "RETURN COUNT(r) AS count");
@@ -655,5 +615,39 @@ public class GraphDao implements IGraphDao {
             logger.error(String.format("Error fetching connections count by status for user %s: %s", userId, e));
         }
         return new HashMap<>();
+    }
+
+    /**
+     * Gets the count of recommended users for a given user based on organization and designation.
+     *
+     * @param userId The ID of the user for whom the count of recommended users is to be fetched.
+     * @return The count of recommended users.
+     */
+    @Override
+    public Integer getCoundForRecommendedUsers(String userId) {
+        try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put(Constants.USER_ID, userId);
+            String countQuery =
+                    "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
+                            "WITH u1 " +
+                            "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
+                            "WHERE ( " +
+                            "    (u2.organisationId = u1.organisationId AND u2.userId <> u1.userId) " +
+                            "    OR " +
+                            "    (u2.designation = u1.designation AND u2.organisationId <> u1.organisationId AND u2.userId <> u1.userId) " +
+                            ") " +
+                            "OPTIONAL MATCH (u1)-[r]-(u2) " +
+                            "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
+                            "RETURN count(u2) AS totalCount";
+            Statement statement = new Statement(countQuery, parameters);
+            StatementResult result = transaction.run(statement);
+            Record record = result.single();
+            result.consume();
+            return record.get(Constants.COUNT).asInt();
+        } catch (Exception e) {
+            logger.error(String.format("Error fetching connections count for recommended user %s: %s", userId, e));
+        }
+        return 0;
     }
 }

@@ -150,15 +150,25 @@ public class ProfileService implements IProfileService {
 			if (validatePaginationParams(request, response)) {
 				return response;
 			}
+			Integer count = connectionService.getCoundForRecommendedUsers(userId);
+			if(count == 0){
+				logger.info("ProfileService : findRecommendations : Recommended Users Count is 0 for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.OK.toString());
+				response.getResult().put(Constants.MESSAGE,"Recommended users count is empty");
+				response.setResponseCode(HttpStatus.OK);
+				return response;
+			}
 			List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
 			if(CollectionUtils.isEmpty(recommendationUsersList)){
 				logger.info("ProfileService : findRecommendations : Recommended Users List is empty for userId: {}", userId);
 				response.getParams().setStatus(HttpStatus.OK.toString());
-				response.getResult().put("response","Recommended users list is empty");
+				response.getResult().put(Constants.MESSAGE,"Recommended users list is empty");
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
-			return enrichUserInformation(request, recommendationUsersList, response,userId,Constants.USERS);
+            enrichUserInformation(request, recommendationUsersList, response, userId, Constants.USERS);
+            response.getResult().put(Constants.COUNT, count);
+			return response;
 		} catch (Exception e) {
 			logger.error(String.format("ProfileService:findRecommendations:Error while fetching recommendation for the user %s %s", userId, e));
 			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
@@ -226,7 +236,7 @@ public class ProfileService implements IProfileService {
 			if(CollectionUtils.isEmpty(recommendationMentorsList)){
 				logger.info("ProfileService : findRecommendedMentors : Recommendation Mentors List is empty for userId: {}", userId);
 				response.getParams().setStatus(HttpStatus.OK.toString());
-				response.getResult().put("response","No recommendations found for the user");
+				response.getResult().put(Constants.MESSAGE,"No recommendations found for the user");
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
@@ -253,10 +263,22 @@ public class ProfileService implements IProfileService {
 	private SBApiResponse enrichUserInformation(Map<String, Object> request, List<Map<String, String>> userList, SBApiResponse response,String userId, String type) {
 		List<String> connectionUserIds = new ArrayList<>();
 		ArrayNode enrichedUserMap;
-		Map<String, Object> enrichedUserMapObj = new HashMap<>();
-		userList.forEach(map -> {
-			if (map.containsKey(Constants.USER_ID)) {
-				connectionUserIds.add(map.get(Constants.USER_ID));
+		Map<String,Map<String,Object>> userInfoMap = new HashMap<>();
+        userList.forEach(userMap -> {
+			if (userMap.containsKey(Constants.USER_ID)) {
+				connectionUserIds.add(userMap.get(Constants.USER_ID));
+				Map<String, Object> userDetails = new HashMap<>();
+				userMap.forEach((key, value) -> {
+					if (!key.equals(Constants.USER_ID)) {
+						if (key.equals(Constants.ROLE) && value != null) {
+							List<String> rolesList = Arrays.asList(value.split(","));
+							userDetails.put(key, rolesList);
+						} else {
+							userDetails.put(key, value);
+						}
+					}
+				});
+				userInfoMap.put(userMap.get(Constants.USER_ID), userDetails);
 			}
 		});
 		MultiSearch mSearchRequest = new MultiSearch();
@@ -278,25 +300,34 @@ public class ProfileService implements IProfileService {
 			List<String> userIds = new ArrayList<>();
 			if (jsonNode != null) {
 				for (JsonNode n : jsonNode) {
-					userIds.add(n.get("userId").asText());
+					userIds.add(n.get(Constants.USER_ID).asText());
 				}
 			}
 			Set<String> userIdsSet = new HashSet<>(userIds);
 			List<String> missingUserIds = connectionUserIds.stream()
 					.filter(id -> !userIdsSet.contains(id))
 					.collect(Collectors.toList());
-			ArrayNode userMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, missingUserIds);
+			ArrayNode userMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, missingUserIds,userInfoMap);
 			if (userMap != null && enrichedUserMap != null) {
 				enrichedUserMap.addAll(userMap);
 				redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
 				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
 			}
 		} else {
-			enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds);
+			enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds,userInfoMap);
 			if (enrichedUserMap.size() > 1)
 				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
 		}
-		response.getResult().put(Constants.RESPONSE, enrichedUserMap);
+		List<JsonNode> nodes = new ArrayList<>();
+		if(enrichedUserMap!=null && !Constants.BLOCKED_USERS.equalsIgnoreCase(type)) {
+			enrichedUserMap.forEach(nodes::add);
+			Collections.shuffle(nodes);
+			ArrayNode shuffledArrayNode = mapper.createArrayNode();
+			nodes.forEach(shuffledArrayNode::add);
+			response.getResult().put(Constants.RESPONSE, shuffledArrayNode);
+		}else{
+			response.getResult().put(Constants.RESPONSE, enrichedUserMap);
+		}
 		response.getParams().setStatus(Constants.OK);
 		response.setResponseCode(HttpStatus.OK);
 		return response;
@@ -327,7 +358,7 @@ public class ProfileService implements IProfileService {
 			if(CollectionUtils.isEmpty(blockedUsersList)){
 				logger.info("ProfileService : findBlockedUsers : Blocked Users List is empty for userId: {}", userId);
 				response.getParams().setStatus(HttpStatus.OK.toString());
-				response.getResult().put("response","Blocked users list is empty");
+				response.getResult().put(Constants.MESSAGE,"Blocked users list is empty");
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
