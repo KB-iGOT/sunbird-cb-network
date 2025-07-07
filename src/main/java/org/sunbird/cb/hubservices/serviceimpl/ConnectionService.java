@@ -186,8 +186,7 @@ public class ConnectionService implements IConnectionService {
 			}
 			Map<String, String> relationProperties = new HashMap<>();
 			relationProperties.put(Constants.Graph.STATUS.getValue(), status);
-			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit,
-					Arrays.asList(Constants.Graph.ID.getValue()));
+			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit, null);
 			int count = nodeService.getNodesCount(userId, relationProperties, null);
 			Map<String,Integer> userCount = new HashMap<>();
 			String connectionEstablishedInformation = redisCacheMgr.getCache(
