@@ -189,8 +189,7 @@ public class ConnectionService implements IConnectionService {
 			relationProperties.put(Constants.Graph.STATUS.getValue(), status);
 			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit, null);
 
-			int count = nodeService.getNodesCount(userId, relationProperties, null);
-			Map<String,Integer> userCount = new HashMap<>();
+			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.APPROVED, null);
 			String connectionEstablishedInformation = redisCacheMgr.getCache(
 					Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId);
 			if (!StringUtils.isEmpty(connectionEstablishedInformation)) {
@@ -198,17 +197,8 @@ public class ConnectionService implements IConnectionService {
 						new TypeReference<Map<String,Integer>>() {
 						});
 			}
-			if(MapUtils.isEmpty(userCount)){
-				userCount = nodeService.getConnectionsCountByStatus(userId,Constants.Status.APPROVED, Constants.DIRECTION.OUT);
-				if(MapUtils.isNotEmpty(userCount)){
-					redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId, userCount, connectionProperties.getRedisUserConnectionEstablishedTimeOut());
-				}
-			}
-
-			response.put(Constants.COUNT,userCount.get(Constants.COUNT));
+			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
 			response.put(Constants.ResponseStatus.PAGENO, offset);
-			response.put(Constants.ResponseStatus.TOTALHIT, count);
-
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 			response.put(Constants.ResponseStatus.DATA, enrichUserInfo(nodes));
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
