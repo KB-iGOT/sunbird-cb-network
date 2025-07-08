@@ -1,17 +1,20 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
 import org.sunbird.cb.hubservices.cassandra.CassandraOperation;
 import org.sunbird.cb.hubservices.exception.ApplicationException;
 import org.sunbird.cb.hubservices.exception.BadRequestException;
@@ -47,6 +50,12 @@ public class ConnectionService implements IConnectionService {
 
 	@Autowired
 	NotificationTriggerService notificationTriggerService;
+
+	@Autowired
+	RedisCacheMgr redisCacheMgr;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
 	@Override
 	public Response upsert(ConnectionRequest request, String updateOperation) {
@@ -178,13 +187,18 @@ public class ConnectionService implements IConnectionService {
 			}
 			Map<String, String> relationProperties = new HashMap<>();
 			relationProperties.put(Constants.Graph.STATUS.getValue(), status);
-			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit,
-					Arrays.asList(Constants.Graph.ID.getValue()));
-			int count = nodeService.getNodesCount(userId, relationProperties, null);
+			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit, null);
 
+			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.APPROVED, null);
+			String connectionEstablishedInformation = redisCacheMgr.getCache(
+					Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId);
+			if (!StringUtils.isEmpty(connectionEstablishedInformation)) {
+				userCount = objectMapper.readValue(connectionEstablishedInformation,
+						new TypeReference<Map<String,Integer>>() {
+						});
+			}
+			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
 			response.put(Constants.ResponseStatus.PAGENO, offset);
-			response.put(Constants.ResponseStatus.TOTALHIT, count);
-
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 			response.put(Constants.ResponseStatus.DATA, enrichUserInfo(nodes));
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
@@ -208,14 +222,41 @@ public class ConnectionService implements IConnectionService {
 			Map<String, String> relationProperties = new HashMap<>();
 			relationProperties.put(Constants.Graph.STATUS.getValue(), Constants.Status.PENDING);
 
-			List<Node> nodes = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
-
+			String connectionRequestedInformation;
+			String connectionRecievedInformation;
+			List<Node> nodes = new ArrayList<>();
+			if (direction == Constants.DIRECTION.OUT) {
+				connectionRequestedInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId);
+				if (!StringUtils.isEmpty(connectionRequestedInformation)) {
+					nodes = objectMapper.readValue(connectionRequestedInformation,
+							new TypeReference<List<Node>>() {
+							});
+				}
+			} else if (direction == Constants.DIRECTION.IN) {
+				connectionRecievedInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId);
+				if (!StringUtils.isEmpty(connectionRecievedInformation)) {
+					nodes = objectMapper.readValue(connectionRecievedInformation,
+							new TypeReference<List<Node>>() {
+							});
+				}
+			}
+			if (CollectionUtils.isEmpty(nodes)) {
+				nodes = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
+				if (!nodes.isEmpty())
+					if (direction == Constants.DIRECTION.OUT) {
+						redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId, nodes, connectionProperties.getRedisUserConnectionRequestedTimeOut());
+					} else if (direction == Constants.DIRECTION.IN) {
+						redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId, nodes, connectionProperties.getRedisUserConnectionRecievedTimeOut());
+					}
+			}
+			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, direction);
+			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 			response.put(Constants.ResponseStatus.DATA, enrichUserInfo(nodes));
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
 
 		} catch (Exception e) {
-			logger.error("ConnectionService::findConnectionsRequestedV2 " , e);
+			logger.error("ConnectionService::findConnectionsRequestedV2 ", e);
 			throw new ApplicationException(Constants.Message.FAILED_CONNECTION + e.getMessage());
 		}
 
@@ -231,7 +272,7 @@ public class ConnectionService implements IConnectionService {
 		List<String> userIds = nodes.stream().map(Node::getId).collect(Collectors.toList());
 		Map<String, Node> nodeMap = nodes.stream().collect(Collectors.toMap(Node::getId, node -> node));
 
-		List<String> fields = Arrays.asList(Constants.ID, Constants.FIRST_NAME, Constants.STATUS, Constants.CHANNEL);
+		List<String> fields = Arrays.asList(Constants.ID, Constants.FIRST_NAME, Constants.STATUS, Constants.CHANNEL,Constants.PROFILE_DETAILS);
 		Map<String, Object> propertyMap = new HashMap<>();
 		int loopSize = 50;
 		for (int i = 0; i < userIds.size(); i += loopSize) {
@@ -251,6 +292,31 @@ public class ConnectionService implements IConnectionService {
 							Node node = nodeMap.get(userId);
 							node.setFullName((String) user.get(Constants.FULL_NAME));
 							node.setDepartmentName((String) user.get(Constants.CHANNEL));
+							JsonNode root = objectMapper.readTree((String) user.get(Constants.PROFILE_DETAILS));
+							if (root != null) {
+								if (root.hasNonNull(Constants.PROFESSIONAL_DETAILS)) {
+									List<Map<String, Object>> professionalDetails = objectMapper.readValue(
+											root.get(Constants.PROFESSIONAL_DETAILS).toString(),
+											new TypeReference<List<Map<String, Object>>>() {}
+									);
+									node.setProfessionalDetails(professionalDetails);
+								}
+								if (root.hasNonNull(Constants.EMPLOYMENT_DETAILS)) {
+									Map<String, Object> employmentDetails = objectMapper.readValue(
+											root.get(Constants.EMPLOYMENT_DETAILS).toString(),
+											new TypeReference<Map<String, Object>>() {}
+									);
+									node.setEmploymentDetails(employmentDetails);
+								}
+								if (root.hasNonNull(Constants.PROFILE_IMAGE_URL)) {
+									String profileImageUrl = root.get(Constants.PROFILE_IMAGE_URL).asText();
+									node.setProfileImageUrl(profileImageUrl);
+								}
+								if (root.hasNonNull(Constants.PROFILE_BANNER_URL)) {
+									String profileBannerUrl = root.get(Constants.PROFILE_BANNER_URL).asText();
+									node.setProfileBannerUrl(profileBannerUrl);
+								}
+							}
 						}
 					}
 				}
@@ -268,6 +334,74 @@ public class ConnectionService implements IConnectionService {
 		} catch (Exception e) {
 			logger.error(String.format("Error fetching relationship between %s and %s : %s", fromUserId, toUserId, e));
 			return new HashMap<>();
+		}
+	}
+
+	/**
+	 * Fetches recommendations for a user based on the provided request parameters.
+	 *
+	 * @param userId   The ID of the user for whom recommendations are to be fetched.
+	 * @param request  A map containing request parameters for fetching recommendations.
+	 * @return A list of maps containing recommendation data for the user.
+	 */
+	@Override
+	public  List<Map<String, String>> findRecommendationForUser(String userId, Map<String, Object> request) {
+		try {
+			return nodeService.findRecommendationForUser(userId,request);
+		} catch (Exception e) {
+			logger.error(String.format("ConnectionService: findRecommendationForUser:Error fetching Recommendations for user %s %s", userId, e));
+			return new ArrayList<>();
+		}
+	}
+
+    /**
+     * Fetches recommendations for mentors based on the provided request parameters.
+     *
+     * @param userId  The ID of the user for whom mentor recommendations are to be fetched.
+     * @param request A map containing request parameters for fetching mentor recommendations.
+     * @return A list of maps containing mentor recommendation data for the user.
+     */
+    @Override
+    public List<Map<String, String>> findRecommendationForMentors(String userId, Map<String, Object> request) {
+        try {
+            return nodeService.findRecommendationForMentors(userId, request);
+        } catch (Exception e) {
+            logger.error(String.format("ConnectionService:findRecommendationForMentors: Error fetching Mentor Recommendations for user %s %s", userId, e));
+            return new ArrayList<>();
+        }
+    }
+
+
+	/**
+	 * Fetches a list of blocked users for a given user based on the provided request parameters.
+	 *
+	 * @param userId   The ID of the user for whom blocked users are to be fetched.
+	 * @param request  A map containing request parameters for fetching blocked users.
+	 * @return A list of maps containing data about blocked users.
+	 */
+	@Override
+	public List<Map<String, String>> findBlockedUsers(String userId, Map<String, Object> request) {
+		try {
+			return nodeService.findBlockedUsers(userId, request);
+		} catch (Exception e) {
+			logger.error(String.format("ConnectionService:findBlockedUsers:Error fetching Blocked users data %s %s", userId, e));
+			return new ArrayList<>();
+		}
+	}
+
+	/**
+	 * Retrieves the count of recommended users for a given user.
+	 *
+	 * @param userId The ID of the user for whom the count of recommended users is to be fetched.
+	 * @return The count of recommended users for the specified user.
+	 */
+	@Override
+	public Integer getCoundForRecommendedUsers(String userId) {
+		try {
+			return nodeService.getCoundForRecommendedUsers(userId);
+		} catch (Exception e) {
+			logger.error(String.format("ConnectionService:findBlockedUsers:Error fetching Blocked users data %s %s", userId, e));
+			return 0;
 		}
 	}
 }

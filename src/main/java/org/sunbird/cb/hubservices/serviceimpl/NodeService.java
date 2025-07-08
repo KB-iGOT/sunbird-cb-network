@@ -88,4 +88,90 @@ public class NodeService implements INodeService {
 			return new HashMap<>();
 		}
 	}
+
+	/**
+	 * Finds recommendations for a user based on the provided request parameters.
+	 *
+	 * @param userId The ID of the user for whom recommendations are to be found.
+	 * @param request A map containing request parameters for finding recommendations.
+	 * @return A list of maps, each representing a recommendation with relevant details.
+	 */
+	@Override
+	public  List<Map<String, String>> findRecommendationForUser(String userId, Map<String, Object> request) {
+		try {
+			return graphDao.findRecommendationForUser(userId,request);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching Recommendations for user %s %s", userId, e));
+			return new ArrayList<>();
+		}
+	}
+
+	/**
+	 * Finds recommendations for mentors based on the provided request parameters.
+	 *
+	 * @param userId  The ID of the user for whom mentor recommendations are to be found.
+	 * @param request A map containing request parameters for finding mentor recommendations.
+	 * @return A list of maps, each representing a mentor recommendation with relevant details.
+	 */
+	@Override
+	public List<Map<String, String>> findRecommendationForMentors(String userId, Map<String, Object> request) {
+		try {
+			return graphDao.findRecommendationForMentors(userId, request);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching Mentor Recommendations for user %s %s", userId, e));
+			return new ArrayList<>();
+		}
+	}
+
+	/**
+	 * Finds blocked users based on the provided request parameters.
+	 *
+	 * @param userId  The ID of the user for whom blocked users are to be found.
+	 * @param request A map containing request parameters for finding blocked users.
+	 * @return A list of maps, each representing a blocked user with relevant details.
+	 */
+	@Override
+	public List<Map<String, String>> findBlockedUsers(String userId, Map<String, Object> request) {
+		try {
+			return graphDao.findBlockedUsers(userId, request);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching Blocked users data %s %s", userId, e));
+			return new ArrayList<>();
+		}
+	}
+
+	/**
+	 * Get the count of connections by status for a user.
+	 *
+	 * @param userId   The ID of the user for whom the connections count is to be fetched.
+	 * @param pending  The status of the connections to filter by (e.g., "pending", "accepted").
+	 * @param direction The direction of the connection (e.g., incoming, outgoing).
+	 * @return A map containing the count of connections by status.
+	 */
+	@Override
+	public Map<String, Integer> getConnectionsCountByStatus(String userId, String pending, Constants.DIRECTION direction) {
+		try {
+			return graphDao.getConnectionsCountByStatus(userId, pending, direction);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching connections count by status for user %s: %s", userId, e));
+		}
+		return new HashMap<>();
+	}
+
+	/**
+	 * Get the count of recommended users for a given user.
+	 *
+	 * @param userId The ID of the user for whom the count of recommended users is to be fetched.
+	 * @return An integer representing the count of recommended users.
+	 */
+	@Override
+	public Integer getCoundForRecommendedUsers(String userId) {
+		try {
+			return graphDao.getCoundForRecommendedUsers(userId);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching connections count by status for user %s: %s", userId, e));
+		}
+		return 0;
+	}
+
 }

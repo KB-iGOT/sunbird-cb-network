@@ -74,4 +74,26 @@ public class ConnectionProfileController {
 		SBApiResponse response=profileService.getRelationshipBetweenUsers(toUserId,authToken);
 		return new ResponseEntity<>(response,response.getResponseCode());
 	}
+
+	@PostMapping(Constants.FIND_RECOMMENDED_V2)
+	public ResponseEntity<SBApiResponse> findRecommendedConnectionsV2( @RequestHeader(value = Constants.X_AUTH_TOKEN, required = true) String authToken,
+																@RequestBody Map<String, Object> request) {
+		SBApiResponse response = profileService.findRecommendations(authToken,request);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+
+	@PostMapping(Constants.FIND_RECOMMENDED_MENTOR)
+	public ResponseEntity<SBApiResponse> findRecommendedMentors( @RequestHeader(value = Constants.X_AUTH_TOKEN, required = true) String authToken,
+																	   @RequestBody Map<String, Object> request) {
+		SBApiResponse response = profileService.findRecommendedMentors(authToken,request);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+
+	@PostMapping(Constants.FETCH_BLOCKED)
+	public ResponseEntity<SBApiResponse> findBlockedUsers( @RequestHeader(value = Constants.X_AUTH_TOKEN, required = true) String authToken,
+													  @RequestBody Map<String, Object> request) {
+		SBApiResponse response = profileService.findBlockedUsers(authToken,request);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+
+	}
 }
