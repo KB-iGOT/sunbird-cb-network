@@ -492,8 +492,9 @@ public class GraphDao implements IGraphDao {
                 "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
                 "WHERE u2.organisationId = u1.organisationId " +
                 "AND u2.userId <> u1.userId " +
-                "AND NOT (u1)--(u2) " +
                 "AND 'MENTOR' IN u2.role " +
+                "OPTIONAL MATCH (u1)-[r]-(u2) " +
+                "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
                 "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
                 "u2.designation as designation, " +
                 "u2.role as role " +
