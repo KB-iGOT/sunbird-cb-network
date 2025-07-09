@@ -664,8 +664,8 @@ public class GraphDao implements IGraphDao {
         try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
-            String countQuery = "MATCH (u1:User {userId: $userId}) " +
-                    "MATCH (u2:User) " +
+            String countQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
+                    "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
                     "WHERE u2.userId <> u1.userId " +
                     "AND 'MENTOR' IN u2.role " +
                     "OPTIONAL MATCH (u1)-[r]-(u2) " +
