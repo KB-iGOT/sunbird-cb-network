@@ -165,7 +165,7 @@ public class Constants {
 		public static final String REJECTED = "Rejected";
 		public static final String PENDING = "Pending";
 		public static final String DELETED = "Deleted";
-
+		public static final String BLOCKED = "Blocked";
 	}
 
 	public static class Message {
