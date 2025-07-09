@@ -425,10 +425,12 @@ public class ProfileService implements IProfileService {
 			return enrichedUserMap;
 		}
 		ArrayNode userMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds, userInfoMap);
-		if (userMap != null && enrichedUserMap != null) {
-			enrichedUserMap.addAll(userMap);
+		if (userMap != null && userMap.size() > 0) {
+			ArrayNode newEnrichedUserMap = mapper.createArrayNode();
+			newEnrichedUserMap.addAll(userMap);
 			redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
-			redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
+			redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, newEnrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
+			return newEnrichedUserMap;
 		}
 		return enrichedUserMap;
 	}
