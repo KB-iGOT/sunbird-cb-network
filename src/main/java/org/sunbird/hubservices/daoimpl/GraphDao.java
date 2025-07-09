@@ -683,4 +683,46 @@ public class GraphDao implements IGraphDao {
         return 0;
     }
 
+    /**
+     * Gets the total count of users based on their connection status.
+     *
+     * @param userId          The ID of the user for whom the count is to be fetched.
+     * @param statusValue     A list of connection statuses to filter by.
+     * @param facetsAttribute A list of attributes to be used as facets (e.g., "status").
+     * @return A list of maps containing the count of users grouped by status.
+     */
+    @Override
+    public List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusValue, String facetsAttribute) {
+        List<Map<String, Object>> resultList = new ArrayList<>();
+        String query = "MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]-(other:" + connectionProperties.getUserLabelV3() + ") " +
+                "WHERE u.userId = $userId AND r.status IN $statusValue " +
+                "RETURN u.userId AS userId, r.status AS status, count(*) AS count " +
+                "ORDER BY u.userId, r.status";
+        Map<String, Object> params = new HashMap<>();
+        params.put(Constants.USER_ID, userId);
+        params.put(Constants.STATUS_VALUE, statusValue);
+        List<Map<String, Object>> facetsList;
+        try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
+            Statement statement = new Statement(query, params);
+            StatementResult result = transaction.run(statement);
+            List<Record> totalCounBasedOnStatusRecordList = result.list();
+            result.consume();
+            for (Record totalCounBasedOnStatusRecord : totalCounBasedOnStatusRecordList) {
+                Map<String, Object> map = new HashMap<>();
+                map.put(Constants.NAME, totalCounBasedOnStatusRecord.get(Constants.STATUS).asString());
+                map.put(Constants.COUNT, totalCounBasedOnStatusRecord.get(Constants.COUNT).asInt());
+                resultList.add(map);
+            }
+            facetsList = new ArrayList<>();
+            Map<String, Object> facetsMap = new HashMap<>();
+            facetsMap.put(Constants.NAME, facetsAttribute);
+            facetsMap.put(Constants.VALUES, resultList);
+            facetsList.add(facetsMap);
+            return facetsList;
+        } catch (Exception e) {
+            logger.error(String.format("Error fetching connections count for recommended mentors %s: %s", userId, e));
+        }
+        return new ArrayList<>();
+    }
+
 }

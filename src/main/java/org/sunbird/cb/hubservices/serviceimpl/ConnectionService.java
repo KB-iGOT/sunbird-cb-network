@@ -7,7 +7,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -400,7 +399,7 @@ public class ConnectionService implements IConnectionService {
 		try {
 			return nodeService.getCountForRecommendedUsers(userId);
 		} catch (Exception e) {
-			logger.error(String.format("ConnectionService:findBlockedUsers:Error fetching Blocked users data %s %s", userId, e));
+			logger.error(String.format("ConnectionService:getCountForRecommendedUsers:Error fetching Count for Recommended users data %s %s", userId, e));
 			return 0;
 		}
 	}
@@ -416,8 +415,26 @@ public class ConnectionService implements IConnectionService {
 		try {
 			return nodeService.getCountForRecommendedMentors(userId);
 		} catch (Exception e) {
-			logger.error(String.format("ConnectionService:findBlockedUsers:Error fetching Blocked users data %s %s", userId, e));
+			logger.error(String.format("ConnectionService:getCountForRecommendedMentors:Error fetching Count for Recommended Mentors data %s %s", userId, e));
 			return 0;
 		}
+	}
+
+	/**
+	 * Retrieves the total count of users based on their status for a given user.
+	 *
+	 * @param userId     The ID of the user for whom the count is to be fetched.
+	 * @param statusList A list of statuses to filter the users (e.g., "pending", "accepted").
+	 * @return A list of maps containing the total count of users based on their status.
+	 */
+	@Override
+	public List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, String facet) {
+		try {
+			return nodeService.getTotalCountForUsersBasedOnStatus(userId, statusList, facet);
+		} catch (Exception e) {
+			logger.error(String.format("ConnectionService:findBlockedUsers:Error fetching Blocked users data %s %s", userId, e));
+
+		}
+		return new ArrayList<>();
 	}
 }

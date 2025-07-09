@@ -71,4 +71,13 @@ public interface INodeService {
 	 * @return An integer representing the count of recommended mentors.
 	 */
 	Integer getCountForRecommendedMentors(String userId);
+
+	/**
+	 * Get the total count of connections for users based on their status.
+	 *
+	 * @param userId     The ID of the user for whom the total count is to be fetched.
+	 * @param statusList A list of statuses to filter the connections (e.g., "pending", "accepted").
+	 * @return A list of maps containing the total count of connections for each user based on their status.
+	 */
+	List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, String facets);
 }
