@@ -420,11 +420,11 @@ public class ProfileService implements IProfileService {
 				userIds.add(n.get(Constants.USER_ID).asText());
 			}
 		}
-		Set<String> userIdsSet = new HashSet<>(userIds);
-		List<String> missingUserIds = connectionUserIds.stream()
-				.filter(id -> !userIdsSet.contains(id))
-				.collect(Collectors.toList());
-		ArrayNode userMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, missingUserIds, userInfoMap);
+		if(connectionUserIds.equals(userIds)){
+			logger.info("ProfileService : fetchUserDataNotAvailableInRedisCache : No new user data found in Redis cache for userId: {}", userId);
+			return enrichedUserMap;
+		}
+		ArrayNode userMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds, userInfoMap);
 		if (userMap != null && enrichedUserMap != null) {
 			enrichedUserMap.addAll(userMap);
 			redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
