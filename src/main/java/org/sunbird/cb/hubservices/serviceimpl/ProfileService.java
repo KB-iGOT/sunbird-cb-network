@@ -264,23 +264,7 @@ public class ProfileService implements IProfileService {
 		List<String> connectionUserIds = new ArrayList<>();
 		ArrayNode enrichedUserMap;
 		Map<String,Map<String,Object>> userInfoMap = new HashMap<>();
-        userList.forEach(userMap -> {
-			if (userMap.containsKey(Constants.USER_ID)) {
-				connectionUserIds.add(userMap.get(Constants.USER_ID));
-				Map<String, Object> userDetails = new HashMap<>();
-				userMap.forEach((key, value) -> {
-					if (!key.equals(Constants.USER_ID)) {
-						if (key.equals(Constants.ROLE) && value != null) {
-							List<String> rolesList = Arrays.asList(value.split(","));
-							userDetails.put(key, rolesList);
-						} else {
-							userDetails.put(key, value);
-						}
-					}
-				});
-				userInfoMap.put(userMap.get(Constants.USER_ID), userDetails);
-			}
-		});
+		extractUserDetails(userList, connectionUserIds, userInfoMap);
 		MultiSearch mSearchRequest = new MultiSearch();
 		mSearchRequest.setOffset((Integer) request.get(Constants.OFFSET));
 		mSearchRequest.setSize((Integer) request.get(Constants.SIZE));
@@ -296,40 +280,13 @@ public class ProfileService implements IProfileService {
 				response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
 				return response;
 			}
-			enrichedUserMap = (ArrayNode) jsonNode;
-			List<String> userIds = new ArrayList<>();
-			if (jsonNode != null) {
-				for (JsonNode n : jsonNode) {
-					userIds.add(n.get(Constants.USER_ID).asText());
-				}
-			}
-			Set<String> userIdsSet = new HashSet<>(userIds);
-			List<String> missingUserIds = connectionUserIds.stream()
-					.filter(id -> !userIdsSet.contains(id))
-					.collect(Collectors.toList());
-			ArrayNode userMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, missingUserIds,userInfoMap);
-			if (userMap != null && enrichedUserMap != null) {
-				enrichedUserMap.addAll(userMap);
-				redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
-				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
-			}
+			enrichedUserMap = fetchUserDataNotAvailableInRedisCache(userId, type, jsonNode, connectionUserIds, mSearchRequest, userInfoMap);
 		} else {
 			enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds,userInfoMap);
 			if (enrichedUserMap.size() > 1)
 				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
 		}
-		List<JsonNode> nodes = new ArrayList<>();
-		if(enrichedUserMap!=null && !Constants.BLOCKED_USERS.equalsIgnoreCase(type)) {
-			enrichedUserMap.forEach(nodes::add);
-			Collections.shuffle(nodes);
-			ArrayNode shuffledArrayNode = mapper.createArrayNode();
-			nodes.forEach(shuffledArrayNode::add);
-			response.getResult().put(Constants.RESPONSE, shuffledArrayNode);
-		}else{
-			response.getResult().put(Constants.RESPONSE, enrichedUserMap);
-		}
-		response.getParams().setStatus(Constants.OK);
-		response.setResponseCode(HttpStatus.OK);
+		formResponseStructure(response, type, enrichedUserMap);
 		return response;
 	}
 
@@ -371,5 +328,92 @@ public class ProfileService implements IProfileService {
 			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
 			return response;
 		}
+	}
+
+	/**
+	 * Extracts user details from the provided userList and populates the connectionUserIds and userInfoMap.
+	 * It processes each user map, extracting the user ID and other relevant details, including roles.
+	 *
+	 * @param userList          The list of user maps containing user details.
+	 * @param connectionUserIds The list to populate with user IDs.
+	 * @param userInfoMap       The map to populate with user details excluding the user ID.
+	 */
+	private static void extractUserDetails(List<Map<String, String>> userList, List<String> connectionUserIds, Map<String, Map<String, Object>> userInfoMap) {
+		userList.forEach(userMap -> {
+			if (userMap.containsKey(Constants.USER_ID)) {
+				connectionUserIds.add(userMap.get(Constants.USER_ID));
+				Map<String, Object> userDetails = new HashMap<>();
+				userMap.forEach((key, value) -> {
+					if (!key.equals(Constants.USER_ID)) {
+						if (key.equals(Constants.ROLE) && value != null) {
+							List<String> rolesList = Arrays.asList(value.split(","));
+							userDetails.put(key, rolesList);
+						} else {
+							userDetails.put(key, value);
+						}
+					}
+				});
+				userInfoMap.put(userMap.get(Constants.USER_ID), userDetails);
+			}
+		});
+	}
+
+	/**
+	 * Forms the response structure for the API response.
+	 * It shuffles the enriched user map if it is not null and not blocked users,
+	 * and sets the response status and code accordingly.
+	 *
+	 * @param response          The SBApiResponse to populate with the result.
+	 * @param type              The type of users (e.g., recommended, blocked).
+	 * @param enrichedUserMap   The enriched user map containing user details.
+	 */
+	private void formResponseStructure(SBApiResponse response, String type, ArrayNode enrichedUserMap) {
+		List<JsonNode> nodes = new ArrayList<>();
+		if(enrichedUserMap !=null && !Constants.BLOCKED_USERS.equalsIgnoreCase(type)) {
+			enrichedUserMap.forEach(nodes::add);
+			Collections.shuffle(nodes);
+			ArrayNode shuffledArrayNode = mapper.createArrayNode();
+			nodes.forEach(shuffledArrayNode::add);
+			response.getResult().put(Constants.RESPONSE, shuffledArrayNode);
+		}else{
+			response.getResult().put(Constants.RESPONSE, enrichedUserMap);
+		}
+		response.getParams().setStatus(Constants.OK);
+		response.setResponseCode(HttpStatus.OK);
+	}
+
+	/**
+	 * Fetches user data that is not available in the Redis cache.
+	 * It retrieves the user IDs from the provided JSON node, checks for missing user IDs,
+	 * and fetches user information from Redis. If new user data is found, it updates the cache.
+	 *
+	 * @param userId            The ID of the user for whom recommendations are being fetched.
+	 * @param type              The type of users (e.g., recommended, blocked).
+	 * @param jsonNode          The JSON node containing user data.
+	 * @param connectionUserIds The list of connection user IDs to check against.
+	 * @param mSearchRequest    The MultiSearch request object for fetching additional user info.
+	 * @param userInfoMap       The map to store user information.
+	 * @return ArrayNode containing enriched user data.
+	 */
+	private ArrayNode fetchUserDataNotAvailableInRedisCache(String userId, String type, JsonNode jsonNode, List<String> connectionUserIds, MultiSearch mSearchRequest, Map<String, Map<String, Object>> userInfoMap) {
+		ArrayNode enrichedUserMap;
+		enrichedUserMap = (ArrayNode) jsonNode;
+		List<String> userIds = new ArrayList<>();
+		if (jsonNode != null) {
+			for (JsonNode n : jsonNode) {
+				userIds.add(n.get(Constants.USER_ID).asText());
+			}
+		}
+		Set<String> userIdsSet = new HashSet<>(userIds);
+		List<String> missingUserIds = connectionUserIds.stream()
+				.filter(id -> !userIdsSet.contains(id))
+				.collect(Collectors.toList());
+		ArrayNode userMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, missingUserIds, userInfoMap);
+		if (userMap != null && enrichedUserMap != null) {
+			enrichedUserMap.addAll(userMap);
+			redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
+			redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
+		}
+		return enrichedUserMap;
 	}
 }
