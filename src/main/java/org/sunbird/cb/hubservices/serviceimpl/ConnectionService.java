@@ -428,9 +428,9 @@ public class ConnectionService implements IConnectionService {
 	 * @return A list of maps containing the total count of users based on their status.
 	 */
 	@Override
-	public List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, List<String> facets) {
+	public List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, String facet) {
 		try {
-			return nodeService.getTotalCountForUsersBasedOnStatus(userId, statusList, facets);
+			return nodeService.getTotalCountForUsersBasedOnStatus(userId, statusList, facet);
 		} catch (Exception e) {
 			logger.error(String.format("ConnectionService:findBlockedUsers:Error fetching Blocked users data %s %s", userId, e));
 

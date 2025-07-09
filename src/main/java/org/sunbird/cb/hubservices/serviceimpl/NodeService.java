@@ -199,9 +199,9 @@ public class NodeService implements INodeService {
 	 * @return A list of maps containing the total count of connections for users based on their status.
 	 */
 	@Override
-	public List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, List<String> facets) {
+	public List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, String facet) {
 		try {
-			return graphDao.getTotalCountForUsersBasedOnStatus(userId, statusList, facets);
+			return graphDao.getTotalCountForUsersBasedOnStatus(userId, statusList, facet);
 		} catch (GraphException e) {
 			logger.error(String.format("Error fetching connections total count Based on status %s: %s", userId, e));
 		}

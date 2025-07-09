@@ -447,7 +447,7 @@ public class ProfileService implements IProfileService {
 	 */
 	@Override
 	public SBApiResponse fetchTotalConnectionsCountByStatus(String authToken, Map<String, Object> request) {
-		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_GET_BLOCKED_USERS);
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_GET_TOTAL_CONNECTIONS_COUNT_BY_STATUS);
 		String userId = "";
 		try {
 			userId = accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
@@ -458,10 +458,15 @@ public class ProfileService implements IProfileService {
 				return response;
 			}
 			Map<String, Object> requestBodyMap = (Map<String, Object>) request.get(Constants.REQUEST);
-			Map<String, Object> filterMap = (Map<String, Object>) requestBodyMap.get("filter");
-			List<String> statusList = (List<String>) filterMap.get("status");
-			List<String> facets = (List<String>) requestBodyMap.get("facets");
-			List<Map<String, Object>> list = connectionService.getTotalCountForUsersBasedOnStatus(userId, statusList, facets);
+			Map<String, Object> filterMap = (Map<String, Object>) requestBodyMap.get(Constants.FILTER);
+			List<String> statusList = (List<String>) filterMap.get(Constants.STATUS);
+			List<String> facets = (List<String>) requestBodyMap.get(Constants.FACETS);
+			List<Map<String, Object>> list = new ArrayList<>();
+			for (String facet : facets) {
+				if (Constants.STATUS.equalsIgnoreCase(facet)) {
+					list.addAll(connectionService.getTotalCountForUsersBasedOnStatus(userId, statusList, facet));
+				}
+			}
 			response.put(Constants.FACETS, list);
 			return response;
 		} catch (Exception e) {

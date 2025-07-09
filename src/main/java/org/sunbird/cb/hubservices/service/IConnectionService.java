@@ -134,5 +134,5 @@ public interface IConnectionService {
 	 * @param statusList A list of statuses to filter the connections (e.g., "pending", "accepted").
 	 * @return A map containing the count of connections by status.
 	 */
-	List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, List<String> facets);
+    List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, String facet);
 }

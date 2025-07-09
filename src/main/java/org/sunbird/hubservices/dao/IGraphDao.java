@@ -79,6 +79,6 @@ public interface IGraphDao {
 	 * @param statusList A list of statuses to filter the connections (e.g., "pending", "accepted").
 	 * @return A list of maps containing the total count of connections for each user based on their status.
 	 */
-	List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, List<String> facets);
+	List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, String facet);
 
 }
