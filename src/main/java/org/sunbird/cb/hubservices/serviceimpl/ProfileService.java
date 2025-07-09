@@ -154,7 +154,7 @@ public class ProfileService implements IProfileService {
 			if (validatePaginationParams(request, response)) {
 				return response;
 			}
-			Integer count = connectionService.getCoundForRecommendedUsers(userId);
+			Integer count = connectionService.getCountForRecommendedUsers(userId);
 			if(count == 0){
 				logger.info("ProfileService : findRecommendations : Recommended Users Count is 0 for userId: {}", userId);
 				response.getParams().setStatus(HttpStatus.OK.toString());

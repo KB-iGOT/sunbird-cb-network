@@ -625,7 +625,7 @@ public class GraphDao implements IGraphDao {
      * @return The count of recommended users.
      */
     @Override
-    public Integer getCoundForRecommendedUsers(String userId) {
+    public Integer getCountForRecommendedUsers(String userId) {
         try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);

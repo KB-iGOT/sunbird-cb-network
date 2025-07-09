@@ -396,9 +396,9 @@ public class ConnectionService implements IConnectionService {
 	 * @return The count of recommended users for the specified user.
 	 */
 	@Override
-	public Integer getCoundForRecommendedUsers(String userId) {
+	public Integer getCountForRecommendedUsers(String userId) {
 		try {
-			return nodeService.getCoundForRecommendedUsers(userId);
+			return nodeService.getCountForRecommendedUsers(userId);
 		} catch (Exception e) {
 			logger.error(String.format("ConnectionService:findBlockedUsers:Error fetching Blocked users data %s %s", userId, e));
 			return 0;

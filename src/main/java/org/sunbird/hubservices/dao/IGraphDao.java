@@ -62,7 +62,7 @@ public interface IGraphDao {
 	 * @param userId The ID of the user for whom the recommended users count is to be fetched.
 	 * @return An integer representing the count of recommended users.
 	 */
-	Integer getCoundForRecommendedUsers(String userId);
+	Integer getCountForRecommendedUsers(String userId);
 
 	/**
 	 * Get the count of recommended mentors for a given user.
