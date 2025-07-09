@@ -490,14 +490,14 @@ public class GraphDao implements IGraphDao {
     private Statement getStatementForRecommendedMentorsInSameOrg(Map<String, Object> parameters) {
         String recommendedMentorsQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
                 "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                "WHERE u2.organisationId = u1.organisationId " +
-                "AND u2.userId <> u1.userId " +
+                "WHERE u2.userId <> u1.userId " +
                 "AND 'MENTOR' IN u2.role " +
                 "OPTIONAL MATCH (u1)-[r]-(u2) " +
                 "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
                 "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                "u2.designation as designation, " +
-                "u2.role as role " +
+                "u2.designation as designation, u2.role as role, " +
+                "CASE WHEN u2.organisationId = u1.organisationId THEN 0 ELSE 1 END AS orgPriority " +
+                "ORDER BY orgPriority ASC " +
                 "SKIP $offset LIMIT $size";
         return new Statement(recommendedMentorsQuery, parameters);
     }
