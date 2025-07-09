@@ -20,6 +20,7 @@ import org.sunbird.cb.hubservices.model.MultiSearch;
 import org.sunbird.cb.hubservices.model.Response;
 import org.sunbird.cb.hubservices.model.SBApiResponse;
 import org.sunbird.cb.hubservices.service.IConnectionService;
+import org.sunbird.cb.hubservices.service.INodeService;
 import org.sunbird.cb.hubservices.service.IProfileService;
 import org.sunbird.cb.hubservices.service.IUserUtility;
 import org.sunbird.cb.hubservices.util.Constants;
@@ -52,6 +53,9 @@ public class ProfileService implements IProfileService {
 
 	@Autowired
 	ObjectMapper mapper;
+
+	@Autowired
+	INodeService nodeService;
 
 	@Override
 	public Response findCommonProfileV2(String userId, int offset, int limit) {
@@ -319,6 +323,8 @@ public class ProfileService implements IProfileService {
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
+			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.BLOCKED, null);
+			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
 			return enrichUserInformation(request, blockedUsersList, response,userId,Constants.BLOCKED_USERS);
 		}
 		catch (Exception e){
