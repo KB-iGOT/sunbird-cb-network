@@ -174,4 +174,21 @@ public class NodeService implements INodeService {
 		return 0;
 	}
 
+
+	/**
+	 * Get the count of recommended mentors for a given user.
+	 *
+	 * @param userId The ID of the user for whom the count of recommended mentors is to be fetched.
+	 * @return An integer representing the count of recommended mentors.
+	 */
+	@Override
+	public Integer getCountForRecommendedMentors(String userId) {
+		try {
+			return graphDao.getCountForRecommendedMentors(userId);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching connections count by status for user %s: %s", userId, e));
+		}
+		return 0;
+	}
+
 }

@@ -652,4 +652,35 @@ public class GraphDao implements IGraphDao {
         }
         return 0;
     }
+
+    /**
+     * Gets the count of recommended mentors for a given user.
+     *
+     * @param userId The ID of the user for whom the count of recommended mentors is to be fetched.
+     * @return The count of recommended mentors.
+     */
+    @Override
+    public Integer getCountForRecommendedMentors(String userId) {
+        try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put(Constants.USER_ID, userId);
+            String countQuery = "MATCH (u1:User {userId: $userId}) " +
+                    "MATCH (u2:User) " +
+                    "WHERE u2.userId <> u1.userId " +
+                    "AND 'MENTOR' IN u2.role " +
+                    "OPTIONAL MATCH (u1)-[r]-(u2) " +
+                    "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
+                    "RETURN count(u2) AS totalCount";
+            Statement statement = new Statement(countQuery, parameters);
+            StatementResult result = transaction.run(statement);
+            Record mentorRecommenedRecord = result.single();
+            result.consume();
+            Value countValue = mentorRecommenedRecord.get(Constants.TOTAL_COUNT);
+            return countValue.isNull() ? 0 : countValue.asInt();
+        }catch (Exception e) {
+            logger.error(String.format("Error fetching connections count for recommended mentors %s: %s", userId, e));
+        }
+        return 0;
+    }
+
 }

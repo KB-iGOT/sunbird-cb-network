@@ -236,6 +236,14 @@ public class ProfileService implements IProfileService {
 			if (validatePaginationParams(request, response)) {
 				return response;
 			}
+			Integer count = connectionService.getCountForRecommendedMentors(userId);
+			if(count == 0){
+				logger.info("ProfileService : findRecommendations : Recommended Mentors Count is 0 for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.OK.toString());
+				response.getResult().put(Constants.MESSAGE,"Recommended Mentors count is empty");
+				response.setResponseCode(HttpStatus.OK);
+				return response;
+			}
 			List<Map<String, String>> recommendationMentorsList = connectionService.findRecommendationForMentors(userId, request);
 			if(CollectionUtils.isEmpty(recommendationMentorsList)){
 				logger.info("ProfileService : findRecommendedMentors : Recommendation Mentors List is empty for userId: {}", userId);
@@ -244,7 +252,9 @@ public class ProfileService implements IProfileService {
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
-			return enrichUserInformation(request, recommendationMentorsList, response,userId,Constants.MENTORS);
+			enrichUserInformation(request, recommendationMentorsList, response,userId,Constants.MENTORS);
+			response.getResult().put(Constants.COUNT, count);
+			return response;
 		} catch (Exception e) {
 			logger.error(String.format("ProfileService : findRecommendedMentors :Error while fetching recommendation for the user %s %s", userId, e));
 			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
