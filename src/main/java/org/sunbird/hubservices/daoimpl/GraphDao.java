@@ -332,8 +332,8 @@ public class GraphDao implements IGraphDao {
             Statement statement = new Statement(query, params);
             StatementResult result = session.run(statement);
             if (result.hasNext()) {
-                Record record = result.next();
-                org.neo4j.driver.v1.types.Relationship rel = record.get("r").asRelationship();
+                Record userRelationShipRecord = result.next();
+                org.neo4j.driver.v1.types.Relationship rel = userRelationShipRecord.get("r").asRelationship();
                 rel.asMap().forEach((k, v) -> relationshipProps.put(k, v != null ? v.toString() : null));
             }
         } catch (Exception e) {
@@ -357,13 +357,13 @@ public class GraphDao implements IGraphDao {
             List<Record> recordsComplete = fetchRecommendationBasedOnOrgAndDesignation(userId, request, session);
             if (!CollectionUtils.isEmpty(recordsComplete)) {
                 recommendationList = new ArrayList<>();
-                for (Record record : recordsComplete) {
+                for (Record userRecommendationRecord : recordsComplete) {
                     recommendationData = new HashMap<>();
-                    recommendationData.put(Constants.USER_ID, record.get(Constants.USER_ID).asString());
-                    recommendationData.put(Constants.ORGANISATION_ID, record.get(Constants.ORGANISATION_ID).asString());
-                    recommendationData.put(Constants.DESIGNATION, record.get(Constants.DESIGNATION).asString());
-                    if (!record.get(Constants.ROLE).isNull()) {
-                        List<String> rolesList = record.get(Constants.ROLE).asList(Value::asString);
+                    recommendationData.put(Constants.USER_ID, userRecommendationRecord.get(Constants.USER_ID).asString());
+                    recommendationData.put(Constants.ORGANISATION_ID, userRecommendationRecord.get(Constants.ORGANISATION_ID).asString());
+                    recommendationData.put(Constants.DESIGNATION, userRecommendationRecord.get(Constants.DESIGNATION).asString());
+                    if (!userRecommendationRecord.get(Constants.ROLE).isNull()) {
+                        List<String> rolesList = userRecommendationRecord.get(Constants.ROLE).asList(Value::asString);
                         String rolesString = String.join(",", rolesList);
                         recommendationData.put(Constants.ROLE, rolesString);
                     } else {
@@ -460,13 +460,13 @@ public class GraphDao implements IGraphDao {
             result.consume();
             if (!CollectionUtils.isEmpty(recordsForRecommendedMentors)) {
                 recommendationList = new ArrayList<>();
-                for (Record record : recordsForRecommendedMentors) {
+                for (Record recommendMentorRecord : recordsForRecommendedMentors) {
                     recommendationData = new HashMap<>();
-                    recommendationData.put(Constants.USER_ID, record.get(Constants.USER_ID).asString());
-                    recommendationData.put(Constants.ORGANISATION_ID, record.get(Constants.ORGANISATION_ID).asString());
-                    recommendationData.put(Constants.DESIGNATION, record.get(Constants.DESIGNATION).asString());
-                    if (!record.get(Constants.ROLE).isNull()) {
-                        List<String> rolesList = record.get(Constants.ROLE).asList(Value::asString);
+                    recommendationData.put(Constants.USER_ID, recommendMentorRecord.get(Constants.USER_ID).asString());
+                    recommendationData.put(Constants.ORGANISATION_ID, recommendMentorRecord.get(Constants.ORGANISATION_ID).asString());
+                    recommendationData.put(Constants.DESIGNATION, recommendMentorRecord.get(Constants.DESIGNATION).asString());
+                    if (!recommendMentorRecord.get(Constants.ROLE).isNull()) {
+                        List<String> rolesList = recommendMentorRecord.get(Constants.ROLE).asList(Value::asString);
                         String rolesString = String.join(",", rolesList);
                         recommendationData.put(Constants.ROLE, rolesString);
                     } else {
@@ -530,11 +530,11 @@ public class GraphDao implements IGraphDao {
             result.consume();
             if (!CollectionUtils.isEmpty(recordsForRecommendedMentors)) {
                 blockedUsersList = new ArrayList<>();
-                for (Record record : recordsForRecommendedMentors) {
+                for (Record blockedUserRecord : recordsForRecommendedMentors) {
                     blockedUsersData = new HashMap<>();
-                    blockedUsersData.put(Constants.USER_ID, record.get("blockedUserId").asString());
-                    blockedUsersData.put(Constants.DESIGNATION, record.get("blockedUserDesignation").asString());
-                    blockedUsersData.put(Constants.ORGANISATION_ID, record.get("blockedOrganisationId").asString());
+                    blockedUsersData.put(Constants.USER_ID, blockedUserRecord.get("blockedUserId").asString());
+                    blockedUsersData.put(Constants.DESIGNATION, blockedUserRecord.get("blockedUserDesignation").asString());
+                    blockedUsersData.put(Constants.ORGANISATION_ID, blockedUserRecord.get("blockedOrganisationId").asString());
                     blockedUsersList.add(blockedUsersData);
                 }
                 logger.info("Blocked users for user {} fetched successfully. Found {} blocked users",
@@ -606,9 +606,9 @@ public class GraphDao implements IGraphDao {
             }
             Statement statement = new Statement(countQuery.toString(), parameters);
             StatementResult result = transaction.run(statement);
-            Record record = result.single();
+            Record connectionCountRecord = result.single();
             result.consume();
-            int count = record.get(Constants.COUNT).asInt();
+            int count = connectionCountRecord.get(Constants.COUNT).asInt();
             Map<String, Integer> resultMap = new HashMap<>();
             resultMap.put(Constants.COUNT, count);
             return resultMap;
@@ -643,9 +643,9 @@ public class GraphDao implements IGraphDao {
                             "RETURN count(u2) AS totalCount";
             Statement statement = new Statement(countQuery, parameters);
             StatementResult result = transaction.run(statement);
-            Record record = result.single();
+            Record recommendUsersRecord = result.single();
             result.consume();
-            Value countValue = record.get(Constants.TOTAL_COUNT);
+            Value countValue = recommendUsersRecord.get(Constants.TOTAL_COUNT);
             return countValue.isNull() ? 0 : countValue.asInt();
         } catch (Exception e) {
             logger.error(String.format("Error fetching connections count for recommended user %s: %s", userId, e));
