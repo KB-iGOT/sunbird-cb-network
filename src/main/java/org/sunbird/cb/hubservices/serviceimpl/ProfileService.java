@@ -432,4 +432,83 @@ public class ProfileService implements IProfileService {
 		}
 		return enrichedUserMap;
 	}
+
+
+	/**
+	 * This method fetches the total connections count by status for the authenticated user.
+	 * It validates the access token, checks the request parameters, and retrieves the count
+	 * of connections based on the specified status.
+	 *
+	 * @param authToken The authentication token of the user.
+	 * @param request   The request map containing filter criteria and facets.
+	 * @return SBApiResponse containing the total connections count by status or an error message.
+	 */
+	@Override
+	public SBApiResponse fetchTotalConnectionsCountByStatus(String authToken, Map<String, Object> request) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_GET_BLOCKED_USERS);
+		String userId = "";
+		try {
+			userId = accessTokenValidator.fetchUserIdFromAccessToken(authToken, response);
+			if (StringUtils.isEmpty(userId)) {
+				return response;
+			}
+			if (validateTotalConnectionCountByStatusParams(request, response)) {
+				return response;
+			}
+			Map<String, Object> requestBodyMap = (Map<String, Object>) request.get(Constants.REQUEST);
+			Map<String, Object> filterMap = (Map<String, Object>) requestBodyMap.get("filter");
+			List<String> statusList = (List<String>) filterMap.get("status");
+			List<String> facets = (List<String>) requestBodyMap.get("facets");
+			List<Map<String, Object>> list = connectionService.getTotalCountForUsersBasedOnStatus(userId, statusList, facets);
+			response.put(Constants.FACETS, list);
+			return response;
+		} catch (Exception e) {
+			logger.error(String.format("ProfileService : findTotalConnectionsCountByStatus : Error while fetching user connections count by status %s %s", userId, e));
+			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+			response.getParams().setErrmsg("Error while fetching user connections count by status");
+			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			return response;
+		}
+	}
+
+	/**
+	 * Validates the parameters for fetching total connections count by status.
+	 * Checks if the request body is not empty, contains a valid filter with status,
+	 * and ensures that facets are provided.
+	 *
+	 * @param request  The request map containing filter criteria and facets.
+	 * @param response The SBApiResponse to set error messages and status.
+	 * @return true if validation fails, false otherwise.
+	 */
+	private boolean validateTotalConnectionCountByStatusParams(Map<String, Object> request, SBApiResponse response) {
+		Map<String, Object> requestBodyMap = (Map<String, Object>) request.get(Constants.REQUEST);
+		if (MapUtils.isEmpty(requestBodyMap)) {
+			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
+			response.getParams().setErrmsg("Request body cannot be null");
+			response.setResponseCode(HttpStatus.BAD_REQUEST);
+			return true;
+		}
+		Map<String, Object> filterMap = (Map<String, Object>) requestBodyMap.get("filter");
+		if (MapUtils.isEmpty(filterMap)) {
+			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
+			response.getParams().setErrmsg("Filter cannot be null");
+			response.setResponseCode(HttpStatus.BAD_REQUEST);
+			return true;
+		}
+		List<String> statusList = (List<String>) filterMap.get("status");
+		if (CollectionUtils.isEmpty(statusList)) {
+			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
+			response.getParams().setErrmsg("Status cannot be null");
+			response.setResponseCode(HttpStatus.BAD_REQUEST);
+			return true;
+		}
+		List<String> facets = (List<String>) requestBodyMap.get("facets");
+		if (CollectionUtils.isEmpty(facets)) {
+			response.getParams().setStatus(HttpStatus.BAD_REQUEST.toString());
+			response.getParams().setErrmsg("Facets cannot be null");
+			response.setResponseCode(HttpStatus.BAD_REQUEST);
+			return true;
+		}
+		return false;
+	}
 }

@@ -96,4 +96,11 @@ public class ConnectionProfileController {
 		return new ResponseEntity<>(response, HttpStatus.OK);
 
 	}
+
+	@PostMapping(Constants.FIND_TOTAL_CONNECTIONS_COUNT_BY_STATUS)
+	public ResponseEntity<SBApiResponse> fetchTotalConnectionsCountByStatus(@RequestHeader(value = Constants.X_AUTH_TOKEN, required = true) String authToken,
+																			@RequestBody Map<String, Object> request) {
+		SBApiResponse response = profileService.fetchTotalConnectionsCountByStatus(authToken, request);
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
 }

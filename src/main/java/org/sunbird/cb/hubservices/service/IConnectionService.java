@@ -126,4 +126,13 @@ public interface IConnectionService {
 	 * @return An integer representing the count of recommended mentors.
 	 */
 	Integer getCountForRecommendedMentors(String userId);
+
+	/**
+	 * Get the count of connections by status for a user.
+	 *
+	 * @param userId     The ID of the user for whom the connections count is to be fetched.
+	 * @param statusList A list of statuses to filter the connections (e.g., "pending", "accepted").
+	 * @return A map containing the count of connections by status.
+	 */
+	List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, List<String> facets);
 }

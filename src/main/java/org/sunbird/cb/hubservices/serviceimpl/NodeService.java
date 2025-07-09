@@ -169,7 +169,7 @@ public class NodeService implements INodeService {
 		try {
 			return graphDao.getCountForRecommendedUsers(userId);
 		} catch (GraphException e) {
-			logger.error(String.format("Error fetching connections count by status for user %s: %s", userId, e));
+			logger.error(String.format("Error fetching connections count for Recommended user %s: %s", userId, e));
 		}
 		return 0;
 	}
@@ -186,9 +186,26 @@ public class NodeService implements INodeService {
 		try {
 			return graphDao.getCountForRecommendedMentors(userId);
 		} catch (GraphException e) {
-			logger.error(String.format("Error fetching connections count by status for user %s: %s", userId, e));
+			logger.error(String.format("Error fetching connections count by Recommended Mentor %s: %s", userId, e));
 		}
 		return 0;
+	}
+
+	/**
+	 * Get the total count of connections for users based on their status.
+	 *
+	 * @param userId     The ID of the user for whom the total count is to be fetched.
+	 * @param statusList A list of statuses to filter the connections (e.g., "pending", "accepted").
+	 * @return A list of maps containing the total count of connections for users based on their status.
+	 */
+	@Override
+	public List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, List<String> facets) {
+		try {
+			return graphDao.getTotalCountForUsersBasedOnStatus(userId, statusList, facets);
+		} catch (GraphException e) {
+			logger.error(String.format("Error fetching connections total count Based on status %s: %s", userId, e));
+		}
+		return new ArrayList<>();
 	}
 
 }
