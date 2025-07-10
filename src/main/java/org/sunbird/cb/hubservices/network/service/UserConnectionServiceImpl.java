@@ -121,8 +121,22 @@ public class UserConnectionServiceImpl implements UserConnectionService {
             redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + fromUserId);
             redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + toUserId);
         } else if (Constants.UNBLOCKED.equalsIgnoreCase(status)) {
-            redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.BLOCKED_USERS + Constants.UNDER_SCORE + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.BLOCKED_USERS + Constants.UNDER_SCORE + fromUserId);
         }
+        return response;
+    }
+
+    @Override
+    public Response addUserConnection(ConnectionRequest request, String addOperation) {
+        request.setStatus(Constants.Status.PENDING);
+        request.setCreatedAt(new Date().toString());
+        Response response = connectionService.upsert(request, Constants.ADD_OPERATION);
+        String fromUserId = request.getUserIdFrom();
+        String toUserId = request.getUserIdFrom();
+        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + fromUserId);
+        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.MENTORS + Constants.UNDER_SCORE + fromUserId);
+        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + toUserId);
+        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.MENTORS + Constants.UNDER_SCORE + toUserId);
         return response;
     }
 }
