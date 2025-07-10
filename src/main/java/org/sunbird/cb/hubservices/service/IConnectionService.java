@@ -3,6 +3,7 @@ package org.sunbird.cb.hubservices.service;
 import org.sunbird.cb.hubservices.model.ConnectionRequest;
 import org.sunbird.cb.hubservices.model.Node;
 import org.sunbird.cb.hubservices.model.Response;
+import org.sunbird.cb.hubservices.model.SBApiResponse;
 import org.sunbird.cb.hubservices.util.Constants;
 
 import java.util.List;
@@ -135,4 +136,13 @@ public interface IConnectionService {
 	 * @return A map containing the count of connections by status.
 	 */
     List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, String facet);
+
+	/**
+	 * Block a user based on the connection request.
+	 *
+	 * @param connectionRequest the connection request containing details of the user to be blocked
+	 * @param authToken the authentication token of the user making the request
+	 * @return SBApiResponse containing the result of the block operation
+	 */
+	SBApiResponse blockUser(ConnectionRequest connectionRequest, String authToken);
 }

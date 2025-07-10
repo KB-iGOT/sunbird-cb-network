@@ -27,7 +27,7 @@ public class NodeService implements INodeService {
 	@Override
 	public Boolean connect(Node from, Node to, Map<String, String> relationProperties) throws Exception {
 
-		if (!(Objects.isNull(from) || Objects.isNull(to) || CollectionUtils.isEmpty(relationProperties) || from.getId().equalsIgnoreCase(to.getId())))
+		if (!(Objects.isNull(from) || Objects.isNull(to) || CollectionUtils.isEmpty(relationProperties) || from.getUserId().equalsIgnoreCase(to.getUserId())))
 		{
 			Boolean isNodeFromPresent = graphDao.upsertNode(from);
 			Boolean isNodeToPresent = graphDao.upsertNode(to);
