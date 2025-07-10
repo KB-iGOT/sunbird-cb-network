@@ -15,17 +15,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
 import org.sunbird.cb.hubservices.cassandra.CassandraOperation;
+import org.sunbird.cb.hubservices.common.util.ProjectUtil;
 import org.sunbird.cb.hubservices.exception.ApplicationException;
 import org.sunbird.cb.hubservices.exception.BadRequestException;
 import org.sunbird.cb.hubservices.exception.ValidationException;
-import org.sunbird.cb.hubservices.model.ConnectionRequest;
-import org.sunbird.cb.hubservices.model.Node;
-import org.sunbird.cb.hubservices.model.NotificationEvent;
-import org.sunbird.cb.hubservices.model.Response;
+import org.sunbird.cb.hubservices.model.*;
 import org.sunbird.cb.hubservices.service.IConnectionService;
 import org.sunbird.cb.hubservices.service.INodeService;
 import org.sunbird.cb.hubservices.util.ConnectionProperties;
 import org.sunbird.cb.hubservices.util.Constants;
+import org.sunbird.cb.hubservices.util.RequestHandlerServiceImpl;
 import org.sunbird.cb.hubservices.util.notificationUtill.HelperMethodService;
 import org.sunbird.cb.hubservices.util.notificationUtill.NotificationTriggerService;
 
@@ -56,6 +55,66 @@ public class ConnectionService implements IConnectionService {
 	@Autowired
 	ObjectMapper objectMapper;
 
+	@Autowired
+	RequestHandlerServiceImpl requestHandlerService;
+
+	/**
+	 * This method is used to block a user.
+	 *
+	 * @param connectionRequest the connection request containing details of the user to be blocked
+	 * @param authToken         the authentication token of the user
+	 * @return SBApiResponse containing the status and message of the operation
+	 */
+	@Override
+	public SBApiResponse blockUser(ConnectionRequest connectionRequest, String authToken) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_BLOCK_USER);
+		Node from = new Node(connectionRequest.getUserIdFrom());
+		Node to = new Node(connectionRequest.getUserIdTo());
+		Map<String, String> propertyMap = new HashMap<>();
+		propertyMap.put(Constants.X_AUTH_TOKEN, authToken);
+		List<String> userIds = Arrays.asList(connectionRequest.getUserIdTo(), connectionRequest.getUserIdFrom());
+		for (String userId : userIds) {
+			Map<String, Object> readData = (Map<String, Object>) requestHandlerService
+					.fetchUsingGetWithHeadersProfile(connectionProperties.getLearnerServiceHost() + connectionProperties.getUserReadV5() + userId,
+							propertyMap);
+			Map<String, Object> resultMap = (Map<String, Object>) readData.get(Constants.RESULT);
+			Map<String, Object> responseMap = (Map<String, Object>) resultMap.get(Constants.RESPONSE);
+			List<Map<String, Object>> roles = (List<Map<String, Object>>) responseMap.get(Constants.ROLES);
+			List<String> roleList = roles.stream()
+					.map(roleMap -> (String) roleMap.get(Constants.ROLE))
+					.filter(Objects::nonNull)
+					.collect(Collectors.toList());
+			Map<String, Object> profileDetails = (Map<String, Object>) responseMap.get(Constants.PROFILE_DETAILS_KEY);
+			List<Map<String, Object>> professionalDetails = (List<Map<String, Object>>) profileDetails.get(Constants.PROFESSIONAL_DETAILS);
+			String designation = (String) professionalDetails.get(0).get(Constants.DESIGNATION);
+			if (userId.equals(connectionRequest.getUserIdFrom())) {
+				from.setUserId(userId);
+				from.setDesignation(designation);
+				from.setRoles(roleList);
+				from.setOrganisationId((String) responseMap.get("rootOrgId"));
+			} else {
+				to.setUserId(userId);
+				to.setDesignation(designation);
+				to.setRoles(roleList);
+				to.setOrganisationId((String) responseMap.get("rootOrgId"));
+			}
+		}
+		Map<String, String> relationshipProperties = setRelationshipProperties(connectionRequest, from, to);
+		try {
+			boolean areNodesConnected = nodeService.connect(from, to, relationshipProperties);
+			if (areNodesConnected) {
+				response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
+				response.put(Constants.ResponseStatus.STATUS, HttpStatus.CREATED);
+			} else {
+				relationshipProperties.put(Constants.STATUS, Constants.FAILED);
+				response.put(Constants.ResponseStatus.STATUS, HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+		} catch (Exception e) {
+			logger.error(String.format("Error while blocking the user! error : %s", e.getMessage()));
+		}
+		return response;
+	}
+
 	@Override
 	public Response upsert(ConnectionRequest request, String updateOperation) {
 		Response response = new Response();
@@ -63,8 +122,8 @@ public class ConnectionService implements IConnectionService {
 			Node from = new Node(request.getUserIdFrom());
 			Node to = new Node(request.getUserIdTo());
 			if (updateOperation.equalsIgnoreCase(Constants.UPDATE_OPERATION)) {
-				to.setId(request.getUserIdFrom());
-				from.setId(request.getUserIdTo());
+				to.setUserId(request.getUserIdFrom());
+				from.setUserId(request.getUserIdTo());
 			}
 			Map<String, String> relationshipProperties = setRelationshipProperties(request, from, to);
 			try {
@@ -92,7 +151,7 @@ public class ConnectionService implements IConnectionService {
 					response.put(Constants.ResponseStatus.STATUS, HttpStatus.INTERNAL_SERVER_ERROR);
 				}
 				if (connectionProperties.isNotificationEnabled()) {
-					sendNotification(connectionProperties.getNotificationTemplateRequest(), from.getId(), to.getId(),
+					sendNotification(connectionProperties.getNotificationTemplateRequest(), from.getUserId(), to.getUserId(),
 							relationshipProperties.get(Constants.STATUS));
 				}
 			} catch (ValidationException ve) {
@@ -125,7 +184,7 @@ public class ConnectionService implements IConnectionService {
 		return nodeService
 				.getNodes(userId, relationProperties, null, 0, connectionProperties.getMaxNodeSize(),
 						Arrays.asList(Constants.Graph.ID.getValue()))
-				.stream().map(Node::getId).collect(Collectors.toList());
+				.stream().map(Node::getUserId).collect(Collectors.toList());
 
 	}
 
@@ -160,7 +219,7 @@ public class ConnectionService implements IConnectionService {
 			List<Node> nodes = nodeService.getNodeNextLevel(userId, relationProperties, offset, limit);
 
 			List<String> allNodesIds = findUserConnectionsV2(userId, Constants.Status.APPROVED);
-			List<Node> detachedNodes = nodes.stream().filter(node -> !allNodesIds.contains(node.getId()))
+			List<Node> detachedNodes = nodes.stream().filter(node -> !allNodesIds.contains(node.getUserId()))
 					.collect(Collectors.toList());
 
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
@@ -268,8 +327,8 @@ public class ConnectionService implements IConnectionService {
 		}
 
 		logger.info("ConnectionService... enrichUserInfo... node size : " + nodes.size());
-		List<String> userIds = nodes.stream().map(Node::getId).collect(Collectors.toList());
-		Map<String, Node> nodeMap = nodes.stream().collect(Collectors.toMap(Node::getId, node -> node));
+		List<String> userIds = nodes.stream().map(Node::getUserId).collect(Collectors.toList());
+		Map<String, Node> nodeMap = nodes.stream().collect(Collectors.toMap(Node::getUserId, node -> node));
 
 		List<String> fields = Arrays.asList(Constants.ID, Constants.FIRST_NAME, Constants.STATUS, Constants.CHANNEL,Constants.PROFILE_DETAILS);
 		Map<String, Object> propertyMap = new HashMap<>();

@@ -106,4 +106,16 @@ public class ConnectionProperties {
 	@Value(("${redis.user.connectionEstablished.timeout}"))
 	private Integer redisUserConnectionEstablishedTimeOut;
 
+	@Value("${user.read.v5}")
+	private String userReadV5;
+
+	@Value("${client.http.request.factory.timeout}")
+	private Integer clientHttpRequestFactoryTimeout;
+
+	@Value("${client.http.request.factory.pooling.max.total.connections}")
+	private Integer clientHttpRequestFactoryPoolingMaxTotalConnections;
+
+	@Value("${client.http.request.factory.pooling.default.max.per.route}")
+	private Integer clientHttpRequestFactoryPoolingDefaultMaxPerRoute;
+
 }

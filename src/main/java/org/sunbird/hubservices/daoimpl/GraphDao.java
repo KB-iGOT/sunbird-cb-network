@@ -45,7 +45,7 @@ public class GraphDao implements IGraphDao {
     @Override
     public Boolean upsertNode(Node node) throws Exception {
         try (Session session = neo4jDriver.session();Transaction transaction = session.beginTransaction()) {
-            Statement statement = new Statement("MATCH (n:" + label + ") WHERE n.userId=$fromUUID " + "RETURN n", parameters(Constants.FROM_UUID, node.getId()));
+            Statement statement = new Statement("MATCH (n:" + label + ") WHERE n.userId=$fromUUID " + "RETURN n", parameters(Constants.FROM_UUID, node.getUserId()));
             StatementResult result = transaction.run(statement);
             List<Record> existingNodes = result.list();
             result.consume();
@@ -61,7 +61,7 @@ public class GraphDao implements IGraphDao {
                 result = transaction.run(statement);
                 result.consume();
                 transaction.commitAsync().toCompletableFuture().get();
-                logger.info("user node with id {} created successfully ", node.getId());
+                logger.info("user node with id {} created successfully ", node.getUserId());
             }
         } catch (Exception e) {
             logger.error("user node creation failed : ", e);
@@ -76,8 +76,8 @@ public class GraphDao implements IGraphDao {
         boolean isUpserted = Boolean.FALSE;
         try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
-            parameters.put(Constants.FROM_UUID, nodeFrom.getId());
-            parameters.put(Constants.TO_UUID, nodeTo.getId());
+            parameters.put(Constants.FROM_UUID, nodeFrom.getUserId());
+            parameters.put(Constants.TO_UUID, nodeTo.getUserId());
             parameters.put(Constants.Graph.PROPS.getValue(), relationProperties);
 
             String queryNodeExistWithReverseEdge = "MATCH (n:" + label + ")<-[r:connect]-(n1:" +
@@ -89,7 +89,7 @@ public class GraphDao implements IGraphDao {
             result.consume();
             if (recordSize != 0) {
                 if (logger.isDebugEnabled())
-                    logger.debug("updating user relation with fromUUID {} and toUUID {} ", nodeFrom.getId(), nodeTo.getId());
+                    logger.debug("updating user relation with fromUUID {} and toUUID {} ", nodeFrom.getUserId(), nodeTo.getUserId());
                 isUpserted = updateRelationshipBetweenTwoNodes(nodeFrom, nodeTo, statement, result, transaction, recordSize, relationProperties);
                 transaction.commitAsync().toCompletableFuture().get();
             } else {
@@ -104,7 +104,7 @@ public class GraphDao implements IGraphDao {
                     isUpserted = createRelationshipBetweenTwoNodes(nodeFrom, nodeTo, transaction, parameters);
                 } else {
                     if (logger.isDebugEnabled())
-                        logger.debug(nodeTo.getId(), nodeFrom.getId());
+                        logger.debug(nodeTo.getUserId(), nodeFrom.getUserId());
                     isUpserted = updateRelationshipBetweenTwoNodes(nodeTo, nodeFrom, statement, result, transaction, recordSize, relationProperties);
                 }
                 transaction.commitAsync().toCompletableFuture().get();
@@ -119,8 +119,8 @@ public class GraphDao implements IGraphDao {
 
     private Boolean updateRelationshipBetweenTwoNodes(Node nodeTo, Node nodeFrom, Statement statement, StatementResult result, Transaction transaction, int recordSize, Map<String, String> relationProperties) {
         Map<String, Object> parameters = new HashMap<>();
-        parameters.put(Constants.FROM_UUID, nodeFrom.getId());
-        parameters.put(Constants.TO_UUID, nodeTo.getId());
+        parameters.put(Constants.FROM_UUID, nodeFrom.getUserId());
+        parameters.put(Constants.TO_UUID, nodeTo.getUserId());
         parameters.put(Constants.Graph.PROPS.getValue(), relationProperties);
         String updateQuery = "MATCH (n:" + label + ")-[r:connect]->(n1:" + label +
                 ") WHERE n.userId = $fromUUID AND n1.userId = $toUUID " + "SET r" + " += " +
@@ -131,8 +131,8 @@ public class GraphDao implements IGraphDao {
         recordSize = result.list().size();
         result.consume();
         if (recordSize == 0) {
-            logger.info("user relation with toUUID {} and fromUUID {} in updateRelationshipBetweenTwoNodes failed to update ", nodeTo.getId(),
-                    nodeFrom.getId());
+            logger.info("user relation with toUUID {} and fromUUID {} in updateRelationshipBetweenTwoNodes failed to update ", nodeTo.getUserId(),
+                    nodeFrom.getUserId());
             return Boolean.FALSE;
         }
         return Boolean.TRUE;
@@ -154,8 +154,8 @@ public class GraphDao implements IGraphDao {
         recordSize = result.list().size();
         result.consume();
         if (recordSize == 0) {
-            logger.info("user relation with toUUID {} and fromUUID {} in createRelationshipBetweenTwoNodes failed to create ", nodeTo.getId(),
-                    nodeFrom.getId());
+            logger.info("user relation with toUUID {} and fromUUID {} in createRelationshipBetweenTwoNodes failed to create ", nodeTo.getUserId(),
+                    nodeFrom.getUserId());
             return Boolean.FALSE;
         }
         return Boolean.TRUE;

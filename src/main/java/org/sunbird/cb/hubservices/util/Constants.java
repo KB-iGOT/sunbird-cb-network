@@ -142,9 +142,17 @@ public class Constants {
 	public static final String FACETS = "facets";
 	public static final String API_GET_TOTAL_CONNECTIONS_COUNT_BY_STATUS = "api.user.get.total.connections.count.by.status";
 	public static final String FILTER = "filter";
+	public static final String BLOCK_USER = "/block";
+	public static final String BLOCK_OPERATION = "Block";
+	public static final String API_BLOCK_USER = "api.block.user";
+	public static final String FETCH_RESULT_CONSTANT = ".fetchResult:";
+	public static final String URI_CONSTANT = "URI: ";
+	public static final String ROLES = "roles";
+	public static final String PROFILE_DETAILS_KEY = "profileDetails";
+
 
 	public enum Graph {
-		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
+		ID("userId"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
 		UPDATED_AT("updatedAt"), USER_ID("userId");
 
 		private String value;
