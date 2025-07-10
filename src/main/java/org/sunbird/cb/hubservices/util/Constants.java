@@ -143,12 +143,16 @@ public class Constants {
 	public static final String API_GET_TOTAL_CONNECTIONS_COUNT_BY_STATUS = "api.user.get.total.connections.count.by.status";
 	public static final String FILTER = "filter";
 	public static final String BLOCK_USER = "/block";
-	public static final String BLOCK_OPERATION = "Block";
 	public static final String API_BLOCK_USER = "api.block.user";
 	public static final String FETCH_RESULT_CONSTANT = ".fetchResult:";
 	public static final String URI_CONSTANT = "URI: ";
 	public static final String ROLES = "roles";
 	public static final String PROFILE_DETAILS_KEY = "profileDetails";
+	public static final String APPROVED = "Approved";
+	public static final String REJECTED = "Rejected";
+	public static final String BLOCKED = "Blocked";
+	public static final String WITHDRAWN ="Withdrawn" ;
+	public static final String UNBLOCKED = "Unblocked";
 
 
 	public enum Graph {

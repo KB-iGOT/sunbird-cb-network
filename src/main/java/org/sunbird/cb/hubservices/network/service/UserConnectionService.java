@@ -1,6 +1,7 @@
 package org.sunbird.cb.hubservices.network.service;
 
 import org.sunbird.cb.hubservices.model.ConnectionRequest;
+import org.sunbird.cb.hubservices.model.Response;
 import org.sunbird.cb.hubservices.model.SBApiResponse;
 
 public interface UserConnectionService {
@@ -14,4 +15,5 @@ public interface UserConnectionService {
      */
     SBApiResponse blockUser(String authToken, ConnectionRequest request);
 
+    Response updateUserConnection(ConnectionRequest request);
 }

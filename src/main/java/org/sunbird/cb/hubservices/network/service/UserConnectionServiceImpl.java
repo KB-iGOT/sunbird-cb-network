@@ -6,12 +6,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.apache.commons.lang3.StringUtils;
+import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
 import org.sunbird.cb.hubservices.common.auth.AccessTokenValidator;
 import org.sunbird.cb.hubservices.common.util.ProjectUtil;
 import org.sunbird.cb.hubservices.model.ConnectionRequest;
+import org.sunbird.cb.hubservices.model.Response;
 import org.sunbird.cb.hubservices.model.SBApiResponse;
 import org.sunbird.cb.hubservices.serviceimpl.ConnectionService;
-import org.sunbird.cb.hubservices.serviceimpl.ProfileService;
 import org.sunbird.cb.hubservices.util.Constants;
 
 import java.util.Date;
@@ -26,6 +27,9 @@ public class UserConnectionServiceImpl implements UserConnectionService {
 
     @Autowired
     AccessTokenValidator accessTokenValidator;
+
+    @Autowired
+    RedisCacheMgr redisCacheMgr;
 
     /**
      * This method is used to block a user.
@@ -93,4 +97,32 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         return false;
     }
 
+
+    @Override
+    public Response updateUserConnection(ConnectionRequest request) {
+        request.setUpdatedAt(new Date().toString());
+        request.setUpdatedAt(new Date().toString());
+        Response response = connectionService.upsert(request, Constants.UPDATE_OPERATION);
+        String status = request.getStatus();
+        String fromUserId = request.getUserIdFrom();
+        String toUserId = request.getUserIdTo();
+        if (Constants.APPROVED.equalsIgnoreCase(status)) {
+            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + toUserId);
+            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + toUserId);
+        } else if (Constants.REJECTED.equalsIgnoreCase(status)) {
+            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + toUserId);
+        } else if (Constants.BLOCKED.equalsIgnoreCase(status)) {
+            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + toUserId);
+        } else if (Constants.WITHDRAWN.equalsIgnoreCase(status)) {
+            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + toUserId);
+        } else if (Constants.UNBLOCKED.equalsIgnoreCase(status)) {
+            redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.BLOCKED_USERS + Constants.UNDER_SCORE + fromUserId);
+        }
+        return response;
+    }
 }

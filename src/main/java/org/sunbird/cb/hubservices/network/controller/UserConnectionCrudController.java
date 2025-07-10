@@ -37,9 +37,7 @@ public class UserConnectionCrudController {
 
 	@PostMapping(Constants.UPDATE)
 	public ResponseEntity<Response> update(@RequestBody ConnectionRequest request) {
-		request.setUpdatedAt(new Date().toString());
-		request.setUpdatedAt(new Date().toString());
-		Response response = connectionService.upsert(request, Constants.UPDATE_OPERATION);
+		Response response = userConnectionService.updateUserConnection(request);
 		if(response != null){
 			return new ResponseEntity<>(response, (HttpStatus) response.get(Constants.STATUS));
 		}
