@@ -25,9 +25,7 @@ public class UserConnectionCrudController {
 
 	@PostMapping(Constants.ADD)
 	public ResponseEntity<Response> add(@RequestBody ConnectionRequest request) {
-		request.setStatus(Constants.Status.PENDING);
-		request.setCreatedAt(new Date().toString());
-		Response response = connectionService.upsert(request, Constants.ADD_OPERATION);
+		Response response = userConnectionService.addUserConnection(request, Constants.ADD_OPERATION);
 		if (response != null) {
 			return new ResponseEntity<>(response, (HttpStatus) response.get(Constants.STATUS));
 		}
