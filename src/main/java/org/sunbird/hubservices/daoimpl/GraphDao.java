@@ -526,11 +526,11 @@ public class GraphDao implements IGraphDao {
             parameters.put(Constants.OFFSET, offset);
             Statement statement = getStatementForBlockedUsers(parameters);
             StatementResult result = transaction.run(statement);
-            List<Record> recordsForRecommendedMentors = result.list();
+            List<Record> recordsForBlockedUsers = result.list();
             result.consume();
-            if (!CollectionUtils.isEmpty(recordsForRecommendedMentors)) {
+            if (!CollectionUtils.isEmpty(recordsForBlockedUsers)) {
                 blockedUsersList = new ArrayList<>();
-                for (Record blockedUserRecord : recordsForRecommendedMentors) {
+                for (Record blockedUserRecord : recordsForBlockedUsers) {
                     blockedUsersData = new HashMap<>();
                     blockedUsersData.put(Constants.USER_ID, blockedUserRecord.get("blockedUserId").asString());
                     blockedUsersData.put(Constants.DESIGNATION, blockedUserRecord.get("blockedUserDesignation").asString());
@@ -553,7 +553,7 @@ public class GraphDao implements IGraphDao {
      * @return A Neo4j Statement object.
      */
     private Statement getStatementForBlockedUsers(Map<String, Object> parameters) {
-        String blockedUsersQuery = "MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]->(blocked:" +
+        String blockedUsersQuery = "MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]->(blocked:" +
                 connectionProperties.getUserLabelV3() + ") " +
                 "WHERE u.userId = $userId " +
                 "AND r.status IN ['blocked','Blocked'] " +
