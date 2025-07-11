@@ -3,6 +3,7 @@ package org.sunbird.cb.hubservices.service;
 import org.sunbird.cb.hubservices.model.ConnectionRequest;
 import org.sunbird.cb.hubservices.model.Node;
 import org.sunbird.cb.hubservices.model.Response;
+import org.sunbird.cb.hubservices.model.SBApiResponse;
 import org.sunbird.cb.hubservices.util.Constants;
 
 import java.util.List;
@@ -117,5 +118,31 @@ public interface IConnectionService {
 	 * @param userId The ID of the user for whom the connections count is to be fetched.
 	 * @return A map containing the count of connections by status.
 	 */
-	Integer getCoundForRecommendedUsers(String userId);
+	Integer getCountForRecommendedUsers(String userId);
+
+	/**
+	 * Get the count of recommended mentors for a given user.
+	 *
+	 * @param userId The ID of the user for whom the count of recommended mentors is to be fetched.
+	 * @return An integer representing the count of recommended mentors.
+	 */
+	Integer getCountForRecommendedMentors(String userId);
+
+	/**
+	 * Get the count of connections by status for a user.
+	 *
+	 * @param userId     The ID of the user for whom the connections count is to be fetched.
+	 * @param statusList A list of statuses to filter the connections (e.g., "pending", "accepted").
+	 * @return A map containing the count of connections by status.
+	 */
+    List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, String facet);
+
+	/**
+	 * Block a user based on the connection request.
+	 *
+	 * @param connectionRequest the connection request containing details of the user to be blocked
+	 * @param authToken the authentication token of the user making the request
+	 * @return SBApiResponse containing the result of the block operation
+	 */
+	SBApiResponse blockUser(ConnectionRequest connectionRequest, String authToken);
 }

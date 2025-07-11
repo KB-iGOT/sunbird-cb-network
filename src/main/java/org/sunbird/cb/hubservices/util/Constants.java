@@ -134,9 +134,29 @@ public class Constants {
 	public static final String PROFESSIONAL_DETAILS = "professionalDetails";
 	public static final String EMPLOYMENT_DETAILS = "employmentDetails";
 	public static final String PROFILE_BANNER_URL = "profileBannerUrl";
+	public static final String FIND_TOTAL_CONNECTIONS_COUNT_BY_STATUS = "/user/v1/network/connections/list";
+	public static final String REQUEST = "request";
+	public static final String STATUS_VALUE = "statusValue";
+	public static final String NAME = "name";
+	public static final String VALUES = "values";
+	public static final String FACETS = "facets";
+	public static final String API_GET_TOTAL_CONNECTIONS_COUNT_BY_STATUS = "api.user.get.total.connections.count.by.status";
+	public static final String FILTER = "filter";
+	public static final String BLOCK_USER = "/block";
+	public static final String API_BLOCK_USER = "api.block.user";
+	public static final String FETCH_RESULT_CONSTANT = ".fetchResult:";
+	public static final String URI_CONSTANT = "URI: ";
+	public static final String ROLES = "roles";
+	public static final String PROFILE_DETAILS_KEY = "profileDetails";
+	public static final String APPROVED = "Approved";
+	public static final String REJECTED = "Rejected";
+	public static final String BLOCKED = "Blocked";
+	public static final String WITHDRAWN ="Withdrawn" ;
+	public static final String UNBLOCKED = "Unblocked";
+
 
 	public enum Graph {
-		ID("id"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
+		ID("userId"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
 		UPDATED_AT("updatedAt"), USER_ID("userId");
 
 		private String value;
@@ -165,7 +185,7 @@ public class Constants {
 		public static final String REJECTED = "Rejected";
 		public static final String PENDING = "Pending";
 		public static final String DELETED = "Deleted";
-
+		public static final String BLOCKED = "Blocked";
 	}
 
 	public static class Message {

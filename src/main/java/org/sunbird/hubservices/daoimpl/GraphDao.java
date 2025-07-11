@@ -45,7 +45,7 @@ public class GraphDao implements IGraphDao {
     @Override
     public Boolean upsertNode(Node node) throws Exception {
         try (Session session = neo4jDriver.session();Transaction transaction = session.beginTransaction()) {
-            Statement statement = new Statement("MATCH (n:" + label + ") WHERE n.userId=$fromUUID " + "RETURN n", parameters(Constants.FROM_UUID, node.getId()));
+            Statement statement = new Statement("MATCH (n:" + label + ") WHERE n.userId=$fromUUID " + "RETURN n", parameters(Constants.FROM_UUID, node.getUserId()));
             StatementResult result = transaction.run(statement);
             List<Record> existingNodes = result.list();
             result.consume();
@@ -61,7 +61,7 @@ public class GraphDao implements IGraphDao {
                 result = transaction.run(statement);
                 result.consume();
                 transaction.commitAsync().toCompletableFuture().get();
-                logger.info("user node with id {} created successfully ", node.getId());
+                logger.info("user node with id {} created successfully ", node.getUserId());
             }
         } catch (Exception e) {
             logger.error("user node creation failed : ", e);
@@ -76,8 +76,8 @@ public class GraphDao implements IGraphDao {
         boolean isUpserted = Boolean.FALSE;
         try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
-            parameters.put(Constants.FROM_UUID, nodeFrom.getId());
-            parameters.put(Constants.TO_UUID, nodeTo.getId());
+            parameters.put(Constants.FROM_UUID, nodeFrom.getUserId());
+            parameters.put(Constants.TO_UUID, nodeTo.getUserId());
             parameters.put(Constants.Graph.PROPS.getValue(), relationProperties);
 
             String queryNodeExistWithReverseEdge = "MATCH (n:" + label + ")<-[r:connect]-(n1:" +
@@ -89,7 +89,7 @@ public class GraphDao implements IGraphDao {
             result.consume();
             if (recordSize != 0) {
                 if (logger.isDebugEnabled())
-                    logger.debug("updating user relation with fromUUID {} and toUUID {} ", nodeFrom.getId(), nodeTo.getId());
+                    logger.debug("updating user relation with fromUUID {} and toUUID {} ", nodeFrom.getUserId(), nodeTo.getUserId());
                 isUpserted = updateRelationshipBetweenTwoNodes(nodeFrom, nodeTo, statement, result, transaction, recordSize, relationProperties);
                 transaction.commitAsync().toCompletableFuture().get();
             } else {
@@ -104,7 +104,7 @@ public class GraphDao implements IGraphDao {
                     isUpserted = createRelationshipBetweenTwoNodes(nodeFrom, nodeTo, transaction, parameters);
                 } else {
                     if (logger.isDebugEnabled())
-                        logger.debug(nodeTo.getId(), nodeFrom.getId());
+                        logger.debug(nodeTo.getUserId(), nodeFrom.getUserId());
                     isUpserted = updateRelationshipBetweenTwoNodes(nodeTo, nodeFrom, statement, result, transaction, recordSize, relationProperties);
                 }
                 transaction.commitAsync().toCompletableFuture().get();
@@ -119,8 +119,8 @@ public class GraphDao implements IGraphDao {
 
     private Boolean updateRelationshipBetweenTwoNodes(Node nodeTo, Node nodeFrom, Statement statement, StatementResult result, Transaction transaction, int recordSize, Map<String, String> relationProperties) {
         Map<String, Object> parameters = new HashMap<>();
-        parameters.put(Constants.FROM_UUID, nodeFrom.getId());
-        parameters.put(Constants.TO_UUID, nodeTo.getId());
+        parameters.put(Constants.FROM_UUID, nodeFrom.getUserId());
+        parameters.put(Constants.TO_UUID, nodeTo.getUserId());
         parameters.put(Constants.Graph.PROPS.getValue(), relationProperties);
         String updateQuery = "MATCH (n:" + label + ")-[r:connect]->(n1:" + label +
                 ") WHERE n.userId = $fromUUID AND n1.userId = $toUUID " + "SET r" + " += " +
@@ -131,8 +131,8 @@ public class GraphDao implements IGraphDao {
         recordSize = result.list().size();
         result.consume();
         if (recordSize == 0) {
-            logger.info("user relation with toUUID {} and fromUUID {} in updateRelationshipBetweenTwoNodes failed to update ", nodeTo.getId(),
-                    nodeFrom.getId());
+            logger.info("user relation with toUUID {} and fromUUID {} in updateRelationshipBetweenTwoNodes failed to update ", nodeTo.getUserId(),
+                    nodeFrom.getUserId());
             return Boolean.FALSE;
         }
         return Boolean.TRUE;
@@ -154,8 +154,8 @@ public class GraphDao implements IGraphDao {
         recordSize = result.list().size();
         result.consume();
         if (recordSize == 0) {
-            logger.info("user relation with toUUID {} and fromUUID {} in createRelationshipBetweenTwoNodes failed to create ", nodeTo.getId(),
-                    nodeFrom.getId());
+            logger.info("user relation with toUUID {} and fromUUID {} in createRelationshipBetweenTwoNodes failed to create ", nodeTo.getUserId(),
+                    nodeFrom.getUserId());
             return Boolean.FALSE;
         }
         return Boolean.TRUE;
@@ -332,8 +332,8 @@ public class GraphDao implements IGraphDao {
             Statement statement = new Statement(query, params);
             StatementResult result = session.run(statement);
             if (result.hasNext()) {
-                Record record = result.next();
-                org.neo4j.driver.v1.types.Relationship rel = record.get("r").asRelationship();
+                Record userRelationShipRecord = result.next();
+                org.neo4j.driver.v1.types.Relationship rel = userRelationShipRecord.get("r").asRelationship();
                 rel.asMap().forEach((k, v) -> relationshipProps.put(k, v != null ? v.toString() : null));
             }
         } catch (Exception e) {
@@ -357,13 +357,13 @@ public class GraphDao implements IGraphDao {
             List<Record> recordsComplete = fetchRecommendationBasedOnOrgAndDesignation(userId, request, session);
             if (!CollectionUtils.isEmpty(recordsComplete)) {
                 recommendationList = new ArrayList<>();
-                for (Record record : recordsComplete) {
+                for (Record userRecommendationRecord : recordsComplete) {
                     recommendationData = new HashMap<>();
-                    recommendationData.put(Constants.USER_ID, record.get(Constants.USER_ID).asString());
-                    recommendationData.put(Constants.ORGANISATION_ID, record.get(Constants.ORGANISATION_ID).asString());
-                    recommendationData.put(Constants.DESIGNATION, record.get(Constants.DESIGNATION).asString());
-                    if (!record.get(Constants.ROLE).isNull()) {
-                        List<String> rolesList = record.get(Constants.ROLE).asList(Value::asString);
+                    recommendationData.put(Constants.USER_ID, userRecommendationRecord.get(Constants.USER_ID).asString());
+                    recommendationData.put(Constants.ORGANISATION_ID, userRecommendationRecord.get(Constants.ORGANISATION_ID).asString());
+                    recommendationData.put(Constants.DESIGNATION, userRecommendationRecord.get(Constants.DESIGNATION).asString());
+                    if (!userRecommendationRecord.get(Constants.ROLE).isNull()) {
+                        List<String> rolesList = userRecommendationRecord.get(Constants.ROLE).asList(Value::asString);
                         String rolesString = String.join(",", rolesList);
                         recommendationData.put(Constants.ROLE, rolesString);
                     } else {
@@ -460,13 +460,13 @@ public class GraphDao implements IGraphDao {
             result.consume();
             if (!CollectionUtils.isEmpty(recordsForRecommendedMentors)) {
                 recommendationList = new ArrayList<>();
-                for (Record record : recordsForRecommendedMentors) {
+                for (Record recommendMentorRecord : recordsForRecommendedMentors) {
                     recommendationData = new HashMap<>();
-                    recommendationData.put(Constants.USER_ID, record.get(Constants.USER_ID).asString());
-                    recommendationData.put(Constants.ORGANISATION_ID, record.get(Constants.ORGANISATION_ID).asString());
-                    recommendationData.put(Constants.DESIGNATION, record.get(Constants.DESIGNATION).asString());
-                    if (!record.get(Constants.ROLE).isNull()) {
-                        List<String> rolesList = record.get(Constants.ROLE).asList(Value::asString);
+                    recommendationData.put(Constants.USER_ID, recommendMentorRecord.get(Constants.USER_ID).asString());
+                    recommendationData.put(Constants.ORGANISATION_ID, recommendMentorRecord.get(Constants.ORGANISATION_ID).asString());
+                    recommendationData.put(Constants.DESIGNATION, recommendMentorRecord.get(Constants.DESIGNATION).asString());
+                    if (!recommendMentorRecord.get(Constants.ROLE).isNull()) {
+                        List<String> rolesList = recommendMentorRecord.get(Constants.ROLE).asList(Value::asString);
                         String rolesString = String.join(",", rolesList);
                         recommendationData.put(Constants.ROLE, rolesString);
                     } else {
@@ -490,14 +490,14 @@ public class GraphDao implements IGraphDao {
     private Statement getStatementForRecommendedMentorsInSameOrg(Map<String, Object> parameters) {
         String recommendedMentorsQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
                 "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                "WHERE u2.organisationId = u1.organisationId " +
-                "AND u2.userId <> u1.userId " +
+                "WHERE u2.userId <> u1.userId " +
                 "AND 'MENTOR' IN u2.role " +
                 "OPTIONAL MATCH (u1)-[r]-(u2) " +
                 "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
                 "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                "u2.designation as designation, " +
-                "u2.role as role " +
+                "u2.designation as designation, u2.role as role, " +
+                "CASE WHEN u2.organisationId = u1.organisationId THEN 0 ELSE 1 END AS orgPriority " +
+                "ORDER BY orgPriority ASC " +
                 "SKIP $offset LIMIT $size";
         return new Statement(recommendedMentorsQuery, parameters);
     }
@@ -526,15 +526,15 @@ public class GraphDao implements IGraphDao {
             parameters.put(Constants.OFFSET, offset);
             Statement statement = getStatementForBlockedUsers(parameters);
             StatementResult result = transaction.run(statement);
-            List<Record> recordsForRecommendedMentors = result.list();
+            List<Record> recordsForBlockedUsers = result.list();
             result.consume();
-            if (!CollectionUtils.isEmpty(recordsForRecommendedMentors)) {
+            if (!CollectionUtils.isEmpty(recordsForBlockedUsers)) {
                 blockedUsersList = new ArrayList<>();
-                for (Record record : recordsForRecommendedMentors) {
+                for (Record blockedUserRecord : recordsForBlockedUsers) {
                     blockedUsersData = new HashMap<>();
-                    blockedUsersData.put(Constants.USER_ID, record.get("blockedUserId").asString());
-                    blockedUsersData.put(Constants.DESIGNATION, record.get("blockedUserDesignation").asString());
-                    blockedUsersData.put(Constants.ORGANISATION_ID, record.get("blockedOrganisationId").asString());
+                    blockedUsersData.put(Constants.USER_ID, blockedUserRecord.get("blockedUserId").asString());
+                    blockedUsersData.put(Constants.DESIGNATION, blockedUserRecord.get("blockedUserDesignation").asString());
+                    blockedUsersData.put(Constants.ORGANISATION_ID, blockedUserRecord.get("blockedOrganisationId").asString());
                     blockedUsersList.add(blockedUsersData);
                 }
                 logger.info("Blocked users for user {} fetched successfully. Found {} blocked users",
@@ -553,7 +553,7 @@ public class GraphDao implements IGraphDao {
      * @return A Neo4j Statement object.
      */
     private Statement getStatementForBlockedUsers(Map<String, Object> parameters) {
-        String blockedUsersQuery = "MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:CONNECTS_TO]->(blocked:" +
+        String blockedUsersQuery = "MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]->(blocked:" +
                 connectionProperties.getUserLabelV3() + ") " +
                 "WHERE u.userId = $userId " +
                 "AND r.status IN ['blocked','Blocked'] " +
@@ -606,9 +606,9 @@ public class GraphDao implements IGraphDao {
             }
             Statement statement = new Statement(countQuery.toString(), parameters);
             StatementResult result = transaction.run(statement);
-            Record record = result.single();
+            Record connectionCountRecord = result.single();
             result.consume();
-            int count = record.get(Constants.COUNT).asInt();
+            int count = connectionCountRecord.get(Constants.COUNT).asInt();
             Map<String, Integer> resultMap = new HashMap<>();
             resultMap.put(Constants.COUNT, count);
             return resultMap;
@@ -625,7 +625,7 @@ public class GraphDao implements IGraphDao {
      * @return The count of recommended users.
      */
     @Override
-    public Integer getCoundForRecommendedUsers(String userId) {
+    public Integer getCountForRecommendedUsers(String userId) {
         try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
@@ -643,13 +643,86 @@ public class GraphDao implements IGraphDao {
                             "RETURN count(u2) AS totalCount";
             Statement statement = new Statement(countQuery, parameters);
             StatementResult result = transaction.run(statement);
-            Record record = result.single();
+            Record recommendUsersRecord = result.single();
             result.consume();
-            Value countValue = record.get(Constants.TOTAL_COUNT);
+            Value countValue = recommendUsersRecord.get(Constants.TOTAL_COUNT);
             return countValue.isNull() ? 0 : countValue.asInt();
         } catch (Exception e) {
             logger.error(String.format("Error fetching connections count for recommended user %s: %s", userId, e));
         }
         return 0;
     }
+
+    /**
+     * Gets the count of recommended mentors for a given user.
+     *
+     * @param userId The ID of the user for whom the count of recommended mentors is to be fetched.
+     * @return The count of recommended mentors.
+     */
+    @Override
+    public Integer getCountForRecommendedMentors(String userId) {
+        try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
+            Map<String, Object> parameters = new HashMap<>();
+            parameters.put(Constants.USER_ID, userId);
+            String countQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
+                    "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
+                    "WHERE u2.userId <> u1.userId " +
+                    "AND 'MENTOR' IN u2.role " +
+                    "OPTIONAL MATCH (u1)-[r]-(u2) " +
+                    "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
+                    "RETURN count(u2) AS totalCount";
+            Statement statement = new Statement(countQuery, parameters);
+            StatementResult result = transaction.run(statement);
+            Record mentorRecommenedRecord = result.single();
+            result.consume();
+            Value countValue = mentorRecommenedRecord.get(Constants.TOTAL_COUNT);
+            return countValue.isNull() ? 0 : countValue.asInt();
+        }catch (Exception e) {
+            logger.error(String.format("Error fetching connections count for recommended mentors %s: %s", userId, e));
+        }
+        return 0;
+    }
+
+    /**
+     * Gets the total count of users based on their connection status.
+     *
+     * @param userId          The ID of the user for whom the count is to be fetched.
+     * @param statusValue     A list of connection statuses to filter by.
+     * @param facetsAttribute A list of attributes to be used as facets (e.g., "status").
+     * @return A list of maps containing the count of users grouped by status.
+     */
+    @Override
+    public List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusValue, String facetsAttribute) {
+        List<Map<String, Object>> resultList = new ArrayList<>();
+        String query = "MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]-(other:" + connectionProperties.getUserLabelV3() + ") " +
+                "WHERE u.userId = $userId AND r.status IN $statusValue " +
+                "RETURN u.userId AS userId, r.status AS status, count(*) AS count " +
+                "ORDER BY u.userId, r.status";
+        Map<String, Object> params = new HashMap<>();
+        params.put(Constants.USER_ID, userId);
+        params.put(Constants.STATUS_VALUE, statusValue);
+        List<Map<String, Object>> facetsList;
+        try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
+            Statement statement = new Statement(query, params);
+            StatementResult result = transaction.run(statement);
+            List<Record> totalCounBasedOnStatusRecordList = result.list();
+            result.consume();
+            for (Record totalCounBasedOnStatusRecord : totalCounBasedOnStatusRecordList) {
+                Map<String, Object> map = new HashMap<>();
+                map.put(Constants.NAME, totalCounBasedOnStatusRecord.get(Constants.STATUS).asString());
+                map.put(Constants.COUNT, totalCounBasedOnStatusRecord.get(Constants.COUNT).asInt());
+                resultList.add(map);
+            }
+            facetsList = new ArrayList<>();
+            Map<String, Object> facetsMap = new HashMap<>();
+            facetsMap.put(Constants.NAME, facetsAttribute);
+            facetsMap.put(Constants.VALUES, resultList);
+            facetsList.add(facetsMap);
+            return facetsList;
+        } catch (Exception e) {
+            logger.error(String.format("Error fetching connections count for recommended mentors %s: %s", userId, e));
+        }
+        return new ArrayList<>();
+    }
+
 }

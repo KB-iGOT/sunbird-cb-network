@@ -25,4 +25,6 @@ public interface IProfileService {
 	SBApiResponse findRecommendedMentors(String authToken, Map<String, Object> request);
 
 	SBApiResponse findBlockedUsers(String authToken, Map<String, Object> request);
+
+	SBApiResponse fetchTotalConnectionsCountByStatus(String authToken, Map<String, Object> request);
 }

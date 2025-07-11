@@ -10,7 +10,7 @@ import java.util.Map;
 @Setter
 public class Node {
 
-	private String id;
+	private String userId;
 	private String createdAt;
 	private String updatedAt;
 	private String fullName;
@@ -20,12 +20,16 @@ public class Node {
 	private Map<String, Object> employmentDetails;
 	private String profileImageUrl;
 	private String profileBannerUrl;
-	public Node(String id) {
-		this.id = id;
+	private String designation;
+	private String organisationId;
+	private List<String> roles;
+
+	public Node(String userId) {
+		this.userId = userId;
 	}
 
-	public Node(String id,String createdAt,String updatedAt,String status){
-		this.id = id;
+	public Node(String userId,String createdAt,String updatedAt,String status){
+		this.userId = userId;
 		this.createdAt = createdAt;
 		this.updatedAt = updatedAt;
 		this.status = status;
