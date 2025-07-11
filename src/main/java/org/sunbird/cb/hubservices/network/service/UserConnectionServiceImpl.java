@@ -132,7 +132,7 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         request.setCreatedAt(new Date().toString());
         Response response = connectionService.upsert(request, Constants.ADD_OPERATION);
         String fromUserId = request.getUserIdFrom();
-        String toUserId = request.getUserIdFrom();
+        String toUserId = request.getUserIdTo();
         redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + fromUserId);
         redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.MENTORS + Constants.UNDER_SCORE + fromUserId);
         redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + toUserId);
