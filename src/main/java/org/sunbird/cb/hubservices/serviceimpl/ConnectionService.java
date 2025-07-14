@@ -246,19 +246,34 @@ public class ConnectionService implements IConnectionService {
 			Map<String, String> relationProperties = new HashMap<>();
 			relationProperties.put(Constants.Graph.STATUS.getValue(), status);
 			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit, null);
-
+			Collection<Node> cachedNodes = new ArrayList<>();
+			List<String> userIds = nodes.stream().map(Node::getUserId).collect(Collectors.toList());
+			List<String> cachedUserIds = new ArrayList<>();
 			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.APPROVED, null);
 			String connectionEstablishedInformation = redisCacheMgr.getCache(
 					Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId);
 			if (!StringUtils.isEmpty(connectionEstablishedInformation)) {
-				userCount = objectMapper.readValue(connectionEstablishedInformation,
-						new TypeReference<Map<String,Integer>>() {
+				cachedNodes = objectMapper.readValue(connectionEstablishedInformation,
+						new TypeReference<Collection<Node>>() {
 						});
+			}
+			if(!CollectionUtils.isEmpty(cachedNodes)) {
+				for (Node node : cachedNodes) {
+					cachedUserIds.add(node.getUserId());
+				}
 			}
 			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
 			response.put(Constants.ResponseStatus.PAGENO, offset);
+				if (CollectionUtils.isNotEmpty(nodes)&& !userIds.equals(cachedUserIds)) {
+				Collection<Node> enrichedUserInfoNodes = enrichUserInfo(nodes);
+				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId, enrichedUserInfoNodes, connectionProperties.getRedisUserConnectionEstablishedTimeOut());
+				response.put(Constants.ResponseStatus.DATA, enrichedUserInfoNodes);
+				response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
+				response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
+				return response;
+			}
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
-			response.put(Constants.ResponseStatus.DATA, enrichUserInfo(nodes));
+			response.put(Constants.ResponseStatus.DATA, cachedNodes);
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
 
 		} catch (Exception e) {
@@ -282,35 +297,47 @@ public class ConnectionService implements IConnectionService {
 
 			String connectionRequestedInformation;
 			String connectionRecievedInformation;
-			List<Node> nodes = new ArrayList<>();
+			List<Node> nodes  = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
+			Collection<Node> cachedNodes = new ArrayList<>();
+			List<String> userIds = nodes.stream().map(Node::getUserId).collect(Collectors.toList());
+			List<String> cachedUserIds = new ArrayList<>();
 			if (direction == Constants.DIRECTION.OUT) {
 				connectionRequestedInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId);
 				if (!StringUtils.isEmpty(connectionRequestedInformation)) {
-					nodes = objectMapper.readValue(connectionRequestedInformation,
-							new TypeReference<List<Node>>() {
+					cachedNodes = objectMapper.readValue(connectionRequestedInformation,
+							new TypeReference<Collection<Node>>() {
 							});
 				}
 			} else if (direction == Constants.DIRECTION.IN) {
 				connectionRecievedInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId);
 				if (!StringUtils.isEmpty(connectionRecievedInformation)) {
-					nodes = objectMapper.readValue(connectionRecievedInformation,
-							new TypeReference<List<Node>>() {
+					cachedNodes = objectMapper.readValue(connectionRecievedInformation,
+							new TypeReference<Collection<Node>>() {
 							});
 				}
 			}
-			if (CollectionUtils.isEmpty(nodes)) {
-				nodes = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
-				if (!nodes.isEmpty())
-					if (direction == Constants.DIRECTION.OUT) {
-						redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId, nodes, connectionProperties.getRedisUserConnectionRequestedTimeOut());
-					} else if (direction == Constants.DIRECTION.IN) {
-						redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId, nodes, connectionProperties.getRedisUserConnectionRecievedTimeOut());
-					}
+			if(!CollectionUtils.isEmpty(cachedNodes)) {
+				for (Node node : cachedNodes) {
+					cachedUserIds.add(node.getUserId());
+				}
 			}
 			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, direction);
 			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
+			if (CollectionUtils.isNotEmpty(nodes)&& !userIds.equals(cachedUserIds)) {
+				Collection<Node> enrichedUserInfoNodes = enrichUserInfo(nodes);
+				if (direction == Constants.DIRECTION.OUT) {
+					redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId, enrichedUserInfoNodes, connectionProperties.getRedisUserConnectionRequestedTimeOut());
+				}
+				if (direction == Constants.DIRECTION.IN) {
+					redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId, enrichedUserInfoNodes, connectionProperties.getRedisUserConnectionRecievedTimeOut());
+				}
+				response.put(Constants.ResponseStatus.DATA, enrichedUserInfoNodes);
+				response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
+				response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
+				return response;
+			}
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
-			response.put(Constants.ResponseStatus.DATA, enrichUserInfo(nodes));
+			response.put(Constants.ResponseStatus.DATA, cachedNodes);
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
 
 		} catch (Exception e) {
