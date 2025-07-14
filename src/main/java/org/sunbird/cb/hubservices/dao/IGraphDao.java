@@ -1,4 +1,4 @@
-package org.sunbird.hubservices.dao;
+package org.sunbird.cb.hubservices.dao;
 
 import java.util.List;
 import java.util.Map;

@@ -1,9 +1,10 @@
-package org.sunbird.hubservices.daoimpl;
+package org.sunbird.cb.hubservices.dao.impl;
 
 import static org.neo4j.driver.internal.types.InternalTypeSystem.TYPE_SYSTEM;
 import static org.neo4j.driver.v1.Values.parameters;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,12 +17,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
+import org.sunbird.cb.hubservices.dao.IGraphDao;
 import org.sunbird.cb.hubservices.exception.ErrorCode;
 import org.sunbird.cb.hubservices.exception.GraphException;
 import org.sunbird.cb.hubservices.model.Node;
 import org.sunbird.cb.hubservices.util.ConnectionProperties;
 import org.sunbird.cb.hubservices.util.Constants;
-import org.sunbird.hubservices.dao.IGraphDao;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -43,33 +44,25 @@ public class GraphDao implements IGraphDao {
     ConnectionProperties connectionProperties;
 
     @Override
-    public Boolean upsertNode(Node node) throws Exception {
-        try (Session session = neo4jDriver.session();Transaction transaction = session.beginTransaction()) {
-            Statement statement = new Statement("MATCH (n:" + label + ") WHERE n.userId=$fromUUID " + "RETURN n", parameters(Constants.FROM_UUID, node.getUserId()));
-            StatementResult result = transaction.run(statement);
-            List<Record> existingNodes = result.list();
-            result.consume();
-            if (!existingNodes.isEmpty()) {
-                logger.info("Nodes exists, new node cannot be created! ");
+     public Boolean upsertNode(Node node) throws Exception {
+        try (Session session = neo4jDriver.session(); Transaction tx = session.beginTransaction()) {
+            StatementResult result = tx.run("MATCH (n:" + label + ") WHERE n.userId=$fromUUID RETURN n",
+                    parameters(Constants.FROM_UUID, node.getUserId()));
+            if (result.hasNext()) {
+                logger.info("Node exists, skipping creation.");
             } else {
-                logger.info("Node doesn't exists, new node can be created! ");
-                Map<String, Object> params = new HashMap<>();
-                params.put(Constants.Graph.PROPS.getValue(), new ObjectMapper().convertValue(node, Map.class));
-                StringBuilder queryBuilder = new StringBuilder();
-                queryBuilder.append("CREATE (n:").append(label).append(") SET n = $props RETURN n");
-                statement = new Statement(queryBuilder.toString(), params);
-                result = transaction.run(statement);
-                result.consume();
-                transaction.commitAsync().toCompletableFuture().get();
-                logger.info("user node with id {} created successfully ", node.getUserId());
+                Map<String, Object> props = new ObjectMapper().convertValue(node, Map.class);
+                tx.run("CREATE (n:" + label + ") SET n = $props RETURN n", Collections.singletonMap("props", props));
+                tx.commitAsync().toCompletableFuture().get();
+                logger.info("Node created for userId {}", node.getUserId());
             }
         } catch (Exception e) {
-            logger.error("user node creation failed : ", e);
+            logger.error("Error creating node: ", e);
             return Boolean.FALSE;
-
         }
         return Boolean.TRUE;
     }
+
 
     @Override
     public Boolean upsertRelation(Node nodeFrom, Node nodeTo, Map<String, String> relationProperties) throws Exception {

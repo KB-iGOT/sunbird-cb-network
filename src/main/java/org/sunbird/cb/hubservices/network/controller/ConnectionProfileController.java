@@ -71,29 +71,29 @@ public class ConnectionProfileController {
 	@GetMapping(value = "/relationship/{userId}")
 	public ResponseEntity<SBApiResponse> getRelationshipBetweenUsers(@PathVariable(Constants.USER_ID_RQST) String toUserId,
 																	 @RequestHeader(value = Constants.X_AUTH_TOKEN, required = true) String authToken) {
-		SBApiResponse response=profileService.getRelationshipBetweenUsers(toUserId,authToken);
-		return new ResponseEntity<>(response,response.getResponseCode());
+		SBApiResponse response = profileService.getRelationshipBetweenUsers(toUserId,authToken);
+		return new ResponseEntity<>(response, response.getResponseCode());
 	}
 
 	@PostMapping(Constants.FIND_RECOMMENDED_V2)
 	public ResponseEntity<SBApiResponse> findRecommendedConnectionsV2( @RequestHeader(value = Constants.X_AUTH_TOKEN, required = true) String authToken,
 																@RequestBody Map<String, Object> request) {
 		SBApiResponse response = profileService.findRecommendations(authToken,request);
-		return new ResponseEntity<>(response, HttpStatus.OK);
+		return new ResponseEntity<>(response, response.getResponseCode());
 	}
 
 	@PostMapping(Constants.FIND_RECOMMENDED_MENTOR)
 	public ResponseEntity<SBApiResponse> findRecommendedMentors( @RequestHeader(value = Constants.X_AUTH_TOKEN, required = true) String authToken,
 																	   @RequestBody Map<String, Object> request) {
 		SBApiResponse response = profileService.findRecommendedMentors(authToken,request);
-		return new ResponseEntity<>(response, HttpStatus.OK);
+		return new ResponseEntity<>(response, response.getResponseCode());
 	}
 
 	@PostMapping(Constants.FETCH_BLOCKED)
 	public ResponseEntity<SBApiResponse> findBlockedUsers( @RequestHeader(value = Constants.X_AUTH_TOKEN, required = true) String authToken,
 													  @RequestBody Map<String, Object> request) {
 		SBApiResponse response = profileService.findBlockedUsers(authToken,request);
-		return new ResponseEntity<>(response, HttpStatus.OK);
+		return new ResponseEntity<>(response, response.getResponseCode());
 
 	}
 
@@ -101,6 +101,12 @@ public class ConnectionProfileController {
 	public ResponseEntity<SBApiResponse> fetchTotalConnectionsCountByStatus(@RequestHeader(value = Constants.X_AUTH_TOKEN, required = true) String authToken,
 																			@RequestBody Map<String, Object> request) {
 		SBApiResponse response = profileService.fetchTotalConnectionsCountByStatus(authToken, request);
-		return new ResponseEntity<>(response, HttpStatus.OK);
+		return new ResponseEntity<>(response, response.getResponseCode());
+	}
+
+	@GetMapping(value = "/network/onboard/user/{userId}")
+	public ResponseEntity<SBApiResponse> onboardNetworkHubUser(@PathVariable(Constants.USER_ID_RQST) String userId) {
+		SBApiResponse response = profileService.onboardNetworkHubUser(userId);
+		return new ResponseEntity<>(response, response.getResponseCode());
 	}
 }
