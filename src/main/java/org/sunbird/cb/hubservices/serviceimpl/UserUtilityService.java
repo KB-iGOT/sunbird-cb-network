@@ -185,6 +185,13 @@ public class UserUtilityService implements IUserUtility {
 
             if (connectionUserIds.contains(n.get(ProfileUtils.Profile.USER_ID).asText())) {
                 JsonNode profileDetails = n.get(ProfileUtils.Profile.PROFILE_DETAILS);
+                if (profileDetails != null && profileDetails.isObject()) {
+                    JsonNode personalDetails = profileDetails.get(Constants.PERSONAL_DETAILS);
+                    if (personalDetails != null && personalDetails.isObject()) {
+                        ((ObjectNode) personalDetails).remove(Constants.MOBILE);
+                        ((ObjectNode) personalDetails).remove(Constants.PRIMARY_EMAIL);
+                    }
+                }
                 if (!ObjectUtils.isEmpty(profileDetails.get(Constants.VERIFIED_KARMAYOGI))) {
                     ((ObjectNode) profileDetails).put(Constants.VERIFIED_KARMAYOGI, profileDetails.get(Constants.VERIFIED_KARMAYOGI).asBoolean());
                 } else {

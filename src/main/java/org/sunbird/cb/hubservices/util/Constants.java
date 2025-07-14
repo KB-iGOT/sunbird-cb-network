@@ -155,6 +155,10 @@ public class Constants {
 	public static final String UNBLOCKED = "Unblocked";
 	public static final String API_ONBOARD_NETWORK_HUB_USER = "api.onboard.network.hub.user";
 	public static final String USER = "user";
+	public static final String PERSONAL_DETAILS = "personalDetails";
+	public static final String MOBILE = "mobile";
+	public static final String PRIMARY_EMAIL = "primaryEmail";
+
 
 	public enum Graph {
 		ID("userId"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
