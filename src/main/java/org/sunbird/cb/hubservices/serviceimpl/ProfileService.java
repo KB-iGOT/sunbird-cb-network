@@ -28,7 +28,6 @@ import org.sunbird.cb.hubservices.util.NetworkServerProperties;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class ProfileService implements IProfileService {
@@ -56,6 +55,9 @@ public class ProfileService implements IProfileService {
 
 	@Autowired
 	INodeService nodeService;
+
+	@Autowired
+	UserUtilityService userUtilityService;
 
 	@Override
 	public Response findCommonProfileV2(String userId, int offset, int limit) {
@@ -517,5 +519,30 @@ public class ProfileService implements IProfileService {
 			return true;
 		}
 		return false;
+	}
+
+	public SBApiResponse onboardNetworkHubUser(String userId) {
+		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_ONBOARD_NETWORK_HUB_USER);
+		try {
+			Map<String, Object> userProfile = userUtilityService.readUserDataFromDB(userId);
+			if (MapUtils.isEmpty(userProfile)) {
+				logger.error("ProfileService : onboardNetworkHubUser : User profile not found for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.NOT_FOUND.toString());
+				response.getParams().setErrmsg("User profile not found");
+				response.setResponseCode(HttpStatus.NOT_FOUND);
+				return response;
+			}
+
+			// Enrich the user profile with id-mapping lookup.
+
+			// call graphDao and check user already exists in Neo4j
+			// if not, update the details in Neo4J
+		} catch(Exception e) {
+			logger.error("ProfileService : onboardNetworkHubUser : Error while onboarding user {} in network hub: {}", userId, e);
+			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+			response.getParams().setErrmsg("Error while onboarding user in network hub");
+			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+		return response;
 	}
 }

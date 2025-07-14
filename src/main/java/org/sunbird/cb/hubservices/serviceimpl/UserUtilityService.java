@@ -1,19 +1,23 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
+import org.sunbird.cb.hubservices.cassandra.CassandraOperation;
 import org.sunbird.cb.hubservices.model.MultiSearch;
 import org.sunbird.cb.hubservices.model.Request;
 import org.sunbird.cb.hubservices.model.Search;
@@ -25,6 +29,7 @@ import org.sunbird.cb.hubservices.util.Constants;
 import org.sunbird.cb.hubservices.util.NetworkServerProperties;
 import org.sunbird.cb.hubservices.util.PrettyPrintingMap;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
 
@@ -45,6 +50,9 @@ public class UserUtilityService implements IUserUtility {
 
     @Autowired
     NetworkServerProperties networkServerProperties;
+
+    @Autowired
+    private CassandraOperation cassandraOperation;
 
     private Logger logger = LoggerFactory.getLogger(UserUtilityService.class);
 
@@ -206,5 +214,33 @@ public class UserUtilityService implements IUserUtility {
                 arrayRes.add(n.get(ProfileUtils.Profile.PROFILE_DETAILS));
             }
         }
+    }
+
+    public Map<String, Object> readUserDataFromDB(String userId) {        
+        String cacheKey = Constants.USER + ":basicProfile:" + userId;
+        Map<String, Object> queryParams = Map.of(Constants.ID, userId);
+        List<Map<String, Object>> userList = cassandraOperation.getRecordsByProperties(
+                Constants.KEYSPACE_SUNBIRD, Constants.USER, queryParams, null);
+
+        if (CollectionUtils.isEmpty(userList)) { 
+            return Map.of();
+        }
+        Map<String, Object> userObj = userList.get(0);
+        String profileDetailsJson = (String) userObj.get(Constants.PROFILE_DETAILS);
+
+        try {
+            if (StringUtils.isNotBlank(profileDetailsJson)) {
+                Map<String, Object> profileDetailsMap = mapper.readValue(profileDetailsJson, new TypeReference<Map<String, Object>>() {
+                });
+                userObj.put(Constants.PROFILE_DETAILS_KEY, profileDetailsMap);
+            } else {
+                userObj.put(Constants.PROFILE_DETAILS_KEY, Map.of());
+            }
+        } catch (IOException e) {
+            logger.error("Invalid profileDetails JSON for userId: {}", userId, e);
+            userObj.put(Constants.PROFILE_DETAILS_KEY, Map.of());
+        }
+
+        return userObj;
     }
 }

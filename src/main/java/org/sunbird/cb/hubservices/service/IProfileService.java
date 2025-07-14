@@ -27,4 +27,6 @@ public interface IProfileService {
 	SBApiResponse findBlockedUsers(String authToken, Map<String, Object> request);
 
 	SBApiResponse fetchTotalConnectionsCountByStatus(String authToken, Map<String, Object> request);
+
+	SBApiResponse onboardNetworkHubUser(String userId);
 }

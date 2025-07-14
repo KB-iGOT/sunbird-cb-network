@@ -153,7 +153,8 @@ public class Constants {
 	public static final String BLOCKED = "Blocked";
 	public static final String WITHDRAWN ="Withdrawn" ;
 	public static final String UNBLOCKED = "Unblocked";
-
+	public static final String API_ONBOARD_NETWORK_HUB_USER = "api.onboard.network.hub.user";
+	public static final String USER = "user";
 
 	public enum Graph {
 		ID("userId"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),

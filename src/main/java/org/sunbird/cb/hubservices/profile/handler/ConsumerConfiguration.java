@@ -9,34 +9,56 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.KafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 
 @Configuration
 public class ConsumerConfiguration {
+	@Value("${spring.kafka.bootstrap.servers}")
+    private String kafkabootstrapAddress;
 
-	@Value(value = "${kafka.bootstrapAddress}")
-	private String bootstrapAddress;
+    @Value("${kakfa.offset.reset.value}")
+    private String kafkaOffsetResetValue;
 
-	@Value(value = "${add.topic.group.id}")
-	private String addGroupId;
+    @Value("${kafka.max.poll.interval.ms}")
+    private Integer kafkaMaxPollInterval;
 
-	@Value(value = "${update.topic.group.id}")
-	private String updateGroupId;
+    @Value("${kafka.max.poll.records}")
+    private Integer kafkaMaxPollRecords;
 
-	public ConsumerFactory<String, Object> addConsumerFactory() {
-		Map<String, Object> props = new HashMap<>();
-		props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
-		props.put(ConsumerConfig.GROUP_ID_CONFIG, addGroupId);
-		props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
-		return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(), new JsonDeserializer<>(Object.class));
-	}
+    @Value("${kafka.auto.commit.interval.ms}")
+    private Integer kafkaAutoCommitInterval;
 
-	@Bean
-	public ConcurrentKafkaListenerContainerFactory<String, Object> addKafkaListenerContainerFactory() {
-		ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
-		factory.setConsumerFactory(addConsumerFactory());
-		return factory;
-	}
+    @Bean
+    KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, String>> kafkaListenerContainerFactory() {
+
+        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(4);
+        factory.getContainerProperties().setPollTimeout(3000);
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, String> consumerFactory() {
+        return new DefaultKafkaConsumerFactory<>(consumerConfigs());
+    }
+
+    @Bean
+    public Map<String, Object> consumerConfigs() {
+        Map<String, Object> propsMap = new HashMap<>();
+        propsMap.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkabootstrapAddress);
+        propsMap.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
+        propsMap.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, "1000");
+        propsMap.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, kafkaAutoCommitInterval);
+        propsMap.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "15000");
+        propsMap.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        propsMap.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        propsMap.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, kafkaOffsetResetValue);
+        propsMap.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, kafkaMaxPollInterval);
+        propsMap.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, kafkaMaxPollRecords);
+        return propsMap;
+    }
 }
