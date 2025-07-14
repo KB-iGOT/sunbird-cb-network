@@ -172,7 +172,7 @@ public class ProfileService implements IProfileService {
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
-            enrichUserInformation(request, recommendationUsersList, response, userId, Constants.USERS);
+            enrichUserInformation(recommendationUsersList, response, userId, Constants.USERS);
             response.getResult().put(Constants.COUNT, count);
 			return response;
 		} catch (Exception e) {
@@ -254,7 +254,7 @@ public class ProfileService implements IProfileService {
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
-			enrichUserInformation(request, recommendationMentorsList, response,userId,Constants.MENTORS);
+			enrichUserInformation(recommendationMentorsList, response,userId,Constants.MENTORS);
 			response.getResult().put(Constants.COUNT, count);
 			return response;
 		} catch (Exception e) {
@@ -271,19 +271,16 @@ public class ProfileService implements IProfileService {
 	 * Enriches user information by fetching additional details from Redis based on the user IDs
 	 * present in the provided userList. It constructs a MultiSearch request and retrieves user info.
 	 *
-	 * @param request  The request map containing pagination parameters.
 	 * @param userList The list of users to enrich.
 	 * @param response The SBApiResponse to populate with enriched user information.
 	 * @return SBApiResponse containing enriched user information.
 	 */
-	private SBApiResponse enrichUserInformation(Map<String, Object> request, List<Map<String, String>> userList, SBApiResponse response,String userId, String type) {
+	private SBApiResponse enrichUserInformation(List<Map<String, String>> userList, SBApiResponse response,String userId, String type) {
 		List<String> connectionUserIds = new ArrayList<>();
 		ArrayNode enrichedUserMap;
 		Map<String,Map<String,Object>> userInfoMap = new HashMap<>();
 		extractUserDetails(userList, connectionUserIds, userInfoMap);
 		MultiSearch mSearchRequest = new MultiSearch();
-		mSearchRequest.setOffset((Integer) request.get(Constants.OFFSET));
-		mSearchRequest.setSize((Integer) request.get(Constants.SIZE));
 		String userInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId);
 		if (!ObjectUtils.isEmpty(userInformation)) {
 			JsonNode jsonNode;
@@ -337,7 +334,7 @@ public class ProfileService implements IProfileService {
 			}
 			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.BLOCKED, null);
 			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
-			return enrichUserInformation(request, blockedUsersList, response,userId,Constants.BLOCKED_USERS);
+			return enrichUserInformation(blockedUsersList, response,userId,Constants.BLOCKED_USERS);
 		}
 		catch (Exception e){
 			logger.error(String.format("ProfileService : findBlockedUsers : Error while fetching blocked user %s %s", userId, e));
