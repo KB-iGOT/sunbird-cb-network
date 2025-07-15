@@ -145,4 +145,12 @@ public interface IConnectionService {
 	 * @return SBApiResponse containing the result of the block operation
 	 */
 	SBApiResponse blockUser(ConnectionRequest connectionRequest, String authToken);
+
+	/**
+	 * Create/Update the user profile in Neo4j.
+	 *
+	 * @param node the Node object containing user profile details to be created/updated
+	 * @return boolean indicating whether the update was successful or not
+	 */
+	boolean updateUserProfileInNeo4j(Node node);
 }

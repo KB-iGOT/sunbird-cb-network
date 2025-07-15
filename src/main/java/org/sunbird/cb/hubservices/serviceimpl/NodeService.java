@@ -208,4 +208,14 @@ public class NodeService implements INodeService {
 		return new ArrayList<>();
 	}
 
+	@Override
+	public boolean updateUserProfileInNeo4j(Node node) {
+        try {
+            return  graphDao.upsertNode(node);
+        } catch (Exception e) {
+            logger.error(String.format("Error updating user profile in Neo4j for user %s: %s", node.getUserId(), e));
+			return false;
+        }
+    }
+
 }

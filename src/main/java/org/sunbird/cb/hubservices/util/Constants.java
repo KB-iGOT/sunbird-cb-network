@@ -158,7 +158,10 @@ public class Constants {
 	public static final String PERSONAL_DETAILS = "personalDetails";
 	public static final String MOBILE = "mobile";
 	public static final String PRIMARY_EMAIL = "primaryEmail";
-
+	public static final String USER_ROLES = "user_roles";
+	public static final String USERID_KEY = "userid";
+	public static final String SCOPE = "scope";
+	public static final String USER_ONBOARDED_NETWORK_HUB ="User onboarded successfully in network hub" ;
 
 	public enum Graph {
 		ID("userId"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),

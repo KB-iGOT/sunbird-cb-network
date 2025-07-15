@@ -132,6 +132,7 @@ public class ConnectionService implements IConnectionService {
 					String firstName = helperMethodService.fetchUserFirstName(request.getUserIdFrom());
 					Map<String, Object> data = new HashMap<>();
 					data.put("id", request.getUserIdFrom());
+					data.put("user_id",request.getUserIdTo());
 					if (request.getStatus().equalsIgnoreCase(Constants.Status.PENDING)) {
 						notificationTriggerService.triggerNotification(Constants.SEND_CONNECTION_REQUEST, Constants.ALERT,
 								Arrays.asList(request.getUserIdTo()), firstName, data);
@@ -522,5 +523,17 @@ public class ConnectionService implements IConnectionService {
 
 		}
 		return new ArrayList<>();
+	}
+
+
+	/**
+	 * Updates the user profile in Neo4j.
+	 *
+	 * @param node The Node object containing user profile details to be updated.
+	 * @return A boolean indicating whether the update was successful or not.
+	 */
+	@Override
+	public boolean updateUserProfileInNeo4j(Node node) {
+		return nodeService.updateUserProfileInNeo4j(node);
 	}
 }

@@ -416,8 +416,10 @@ public class GraphDao implements IGraphDao {
                 "    OR " +
                 "    (u2.designation = u1.designation AND u2.organisationId <> u1.organisationId AND u2.userId <> u1.userId) " +
                 ") " +
+                "AND NOT (u1)-[:connect {status: 'Pending'}]-(u2) " +
+                "AND NOT (u1)-[:connect {status: 'Approved'}]-(u2) " +
+                "AND NOT (u1)-[:connect {status: 'Blocked'}]-(u2) " +
                 "OPTIONAL MATCH (u1)-[r]-(u2) " +
-                "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
                 "RETURN u2.userId AS userId, " +
                 "       u2.organisationId AS organisationId, " +
                 "       u2.designation AS designation, " +
@@ -485,8 +487,10 @@ public class GraphDao implements IGraphDao {
                 "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
                 "WHERE u2.userId <> u1.userId " +
                 "AND 'MENTOR' IN u2.role " +
+                "AND NOT (u1)-[:connect {status: 'Pending'}]-(u2) " +
+                "AND NOT (u1)-[:connect {status: 'Approved'}]-(u2) " +
+                "AND NOT (u1)-[:connect {status: 'Blocked'}]-(u2) " +
                 "OPTIONAL MATCH (u1)-[r]-(u2) " +
-                "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
                 "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
                 "u2.designation as designation, u2.role as role, " +
                 "CASE WHEN u2.organisationId = u1.organisationId THEN 0 ELSE 1 END AS orgPriority " +
@@ -693,6 +697,7 @@ public class GraphDao implements IGraphDao {
                 "CASE " +
                 "  WHEN r.status = 'Pending' AND (u)-[r]->(other) THEN 'Requested' " +
                 "  WHEN r.status = 'Pending' AND (u)<-[r]-(other) THEN 'Received' " +
+                "  WHEN r.status = 'Blocked' AND (u)-[r]->(other) THEN 'Blocked Outgoing' " +
                 "  ELSE r.status " +
                 "END AS status, count(*) AS count " +
                 "ORDER BY u.userId, status";
