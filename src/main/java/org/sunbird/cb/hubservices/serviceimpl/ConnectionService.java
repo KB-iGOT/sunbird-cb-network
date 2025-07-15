@@ -523,4 +523,16 @@ public class ConnectionService implements IConnectionService {
 		}
 		return new ArrayList<>();
 	}
+
+
+	/**
+	 * Updates the user profile in Neo4j.
+	 *
+	 * @param node The Node object containing user profile details to be updated.
+	 * @return A boolean indicating whether the update was successful or not.
+	 */
+	@Override
+	public boolean updateUserProfileInNeo4j(Node node) {
+		return nodeService.updateUserProfileInNeo4j(node);
+	}
 }

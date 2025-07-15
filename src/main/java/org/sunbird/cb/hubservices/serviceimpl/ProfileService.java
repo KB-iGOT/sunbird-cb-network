@@ -1,5 +1,6 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -13,10 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
+import org.sunbird.cb.hubservices.cassandra.CassandraOperation;
 import org.sunbird.cb.hubservices.common.auth.AccessTokenValidator;
 import org.sunbird.cb.hubservices.common.util.ProjectUtil;
 import org.sunbird.cb.hubservices.exception.ApplicationException;
 import org.sunbird.cb.hubservices.model.MultiSearch;
+import org.sunbird.cb.hubservices.model.Node;
 import org.sunbird.cb.hubservices.model.Response;
 import org.sunbird.cb.hubservices.model.SBApiResponse;
 import org.sunbird.cb.hubservices.service.IConnectionService;
@@ -28,6 +31,7 @@ import org.sunbird.cb.hubservices.util.NetworkServerProperties;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ProfileService implements IProfileService {
@@ -58,6 +62,10 @@ public class ProfileService implements IProfileService {
 
 	@Autowired
 	UserUtilityService userUtilityService;
+
+
+    @Autowired
+    private CassandraOperation cassandraOperation;
 
 	@Override
 	public Response findCommonProfileV2(String userId, int offset, int limit) {
@@ -510,7 +518,22 @@ public class ProfileService implements IProfileService {
 			}
 
 			// Enrich the user profile with id-mapping lookup.
-
+			Map<String, Object> profileDetails = (Map<String, Object>) userProfile.get(Constants.PROFILE_DETAILS_KEY);
+			List<Map<String, Object>> professionalDetails = (List<Map<String, Object>>) profileDetails.get(Constants.PROFESSIONAL_DETAILS);
+			String designation = (String) professionalDetails.get(0).get(Constants.DESIGNATION);
+			List<String> role = getUserRoles(userId, (String) userProfile.get(Constants.ROOT_ORG_ID));
+			Node node = new Node(designation, userId, role, (String) userProfile.get(Constants.ROOT_ORG_ID), new Date().toString());
+			if (connectionService.updateUserProfileInNeo4j(node)) {
+				logger.info("ProfileService : onboardNetworkHubUser : User {} onboarded successfully in network hub", userId);
+				response.getParams().setStatus(HttpStatus.OK.toString());
+				response.getResult().put(Constants.MESSAGE, "User onboarded successfully in network hub");
+				response.setResponseCode(HttpStatus.OK);
+			} else {
+				logger.error("ProfileService : onboardNetworkHubUser : Failed to onboard user {} in network hub", userId);
+				response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+				response.getParams().setErrmsg("Failed to onboard user in network hub");
+				response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			}
 			// call graphDao and check user already exists in Neo4j
 			// if not, update the details in Neo4J
 		} catch(Exception e) {
@@ -520,5 +543,40 @@ public class ProfileService implements IProfileService {
 			response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 		return response;
+	}
+
+	public List<String> getUserRoles(String userId, String rootOrgId) {
+		logger.info("Fetching user roles for userId: {}, rootOrgId: {}", userId, rootOrgId);
+		List<Map<String, Object>> userRoleRecords = cassandraOperation.getRecordsByProperties(
+				Constants.KEYSPACE_SUNBIRD, Constants.USER_ROLES,
+				Map.of(Constants.USERID_KEY, userId), List.of(Constants.ROLE, Constants.SCOPE)
+		);
+		return userRoleRecords.stream()
+				.map(userRoleMap -> {
+					Object scopeObj = userRoleMap.get(Constants.SCOPE);
+					List<Map<String, Object>> scopes = new ArrayList<>();
+					if (scopeObj instanceof List) {
+						scopes = (List<Map<String, Object>>) scopeObj;
+					} else if (scopeObj instanceof String) {
+						String scopeStr = (String) scopeObj;
+						if (!StringUtils.isEmpty(scopeStr)) {
+							try {
+								scopes = mapper.readValue(scopeStr, new TypeReference<List<Map<String, Object>>>() {
+								});
+							} catch (Exception e) {
+								logger.warn("Failed to parse scope JSON for userId {}: {}", userId, e.getMessage());
+								return null;
+							}
+						}
+					}
+					if (!scopes.isEmpty() && scopes.stream().allMatch(scope -> rootOrgId.equals(scope.get(Constants.ORGANISATION_ID)))) {
+						return (String) userRoleMap.get(Constants.ROLE);
+					}
+					return null;
+				})
+				.filter(Objects::nonNull)
+				.distinct()
+				.collect(Collectors.toList());
+
 	}
 }
