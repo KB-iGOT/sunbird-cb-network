@@ -299,7 +299,9 @@ public class ProfileService implements IProfileService {
 			if (enrichedUserMap.size() > 1)
 				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + type + Constants.UNDER_SCORE + userId, enrichedUserMap, networkServerProperties.getRedisUserListReadTimeOut());
 		}
-		formResponseStructure(response, type, enrichedUserMap);
+		response.getResult().put(Constants.RESPONSE, enrichedUserMap);
+		response.getParams().setStatus(Constants.OK);
+		response.setResponseCode(HttpStatus.OK);
 		return response;
 	}
 
@@ -372,30 +374,7 @@ public class ProfileService implements IProfileService {
 			}
 		});
 	}
-
-	/**
-	 * Forms the response structure for the API response.
-	 * It shuffles the enriched user map if it is not null and not blocked users,
-	 * and sets the response status and code accordingly.
-	 *
-	 * @param response          The SBApiResponse to populate with the result.
-	 * @param type              The type of users (e.g., recommended, blocked).
-	 * @param enrichedUserMap   The enriched user map containing user details.
-	 */
-	private void formResponseStructure(SBApiResponse response, String type, ArrayNode enrichedUserMap) {
-		List<JsonNode> nodes = new ArrayList<>();
-		if(enrichedUserMap !=null && !Constants.BLOCKED_USERS.equalsIgnoreCase(type)) {
-			enrichedUserMap.forEach(nodes::add);
-			Collections.shuffle(nodes);
-			ArrayNode shuffledArrayNode = mapper.createArrayNode();
-			nodes.forEach(shuffledArrayNode::add);
-			response.getResult().put(Constants.RESPONSE, shuffledArrayNode);
-		}else{
-			response.getResult().put(Constants.RESPONSE, enrichedUserMap);
-		}
-		response.getParams().setStatus(Constants.OK);
-		response.setResponseCode(HttpStatus.OK);
-	}
+	
 
 	/**
 	 * Fetches user data that is not available in the Redis cache.
