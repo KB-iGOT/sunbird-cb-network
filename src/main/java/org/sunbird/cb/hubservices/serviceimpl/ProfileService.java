@@ -342,7 +342,7 @@ public class ProfileService implements IProfileService {
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
-			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.BLOCKED, null);
+			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.BLOCKED, Constants.DIRECTION.OUT);
 			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
 			return enrichUserInformation(blockedUsersList, response,userId,Constants.BLOCKED_USERS);
 		}
