@@ -689,8 +689,13 @@ public class GraphDao implements IGraphDao {
         List<Map<String, Object>> resultList = new ArrayList<>();
         String query = "MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]-(other:" + connectionProperties.getUserLabelV3() + ") " +
                 "WHERE u.userId = $userId AND r.status IN $statusValue " +
-                "RETURN u.userId AS userId, r.status AS status, count(*) AS count " +
-                "ORDER BY u.userId, r.status";
+                "RETURN u.userId AS userId, " +
+                "CASE " +
+                "  WHEN r.status = 'Pending' AND (u)-[r]->(other) THEN 'Requested' " +
+                "  WHEN r.status = 'Pending' AND (u)<-[r]-(other) THEN 'Received' " +
+                "  ELSE r.status " +
+                "END AS status, count(*) AS count " +
+                "ORDER BY u.userId, status";
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.USER_ID, userId);
         params.put(Constants.STATUS_VALUE, statusValue);
