@@ -150,12 +150,12 @@ public class UserUtilityService implements IUserUtility {
     public ArrayNode getUserInfoFromRedisV2(MultiSearch multiSearch, List<String> connectionUserIds, Map<String, Map<String, Object>> userInfoMap) {
         List<String> includeFields = ProfileUtils.getUserDefaultFields();
         Map<String, Object> tagRes = new HashMap<>();
-        ArrayNode arrayRes = getUserInfoFromSearchBasedOnUserIds(multiSearch, includeFields, connectionUserIds,userInfoMap);
+        ArrayNode arrayRes = getUserInfoFromSearchBasedOnUserIds(includeFields, connectionUserIds,userInfoMap);
         logger.info("user search result :: {}", new PrettyPrintingMap<>(tagRes));
         return arrayRes;
     }
 
-    private ArrayNode getUserInfoFromSearchBasedOnUserIds(MultiSearch multiSearch, List<String> includeFields, List<String> connectionUserIds, Map<String, Map<String, Object>> userInfoMap) {
+    private ArrayNode getUserInfoFromSearchBasedOnUserIds(List<String> includeFields, List<String> connectionUserIds, Map<String, Map<String, Object>> userInfoMap) {
         ArrayNode arrayRes = JsonNodeFactory.instance.arrayNode();
         try {
             Request request = new Request();
@@ -165,8 +165,6 @@ public class UserUtilityService implements IUserUtility {
             additionalProperties.put(Constants.STATUS, 1);
             searchQueryMap.put(Constants.QUERY, "");
             searchQueryMap.put(Constants.FILTERS, additionalProperties);
-            searchQueryMap.put(Constants.OFFSET, multiSearch.getOffset());
-            searchQueryMap.put(Constants.LIMIT, getLimitRequest(multiSearch.getSize()));
             searchQueryMap.put(Constants.FIELDS, includeFields);
             request.setRequest(searchQueryMap);
             fetchUserDetailsFromLearnerService(connectionUserIds, request, arrayRes,userInfoMap);
