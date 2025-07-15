@@ -516,17 +516,47 @@ public class ProfileService implements IProfileService {
 				response.setResponseCode(HttpStatus.NOT_FOUND);
 				return response;
 			}
+			if (MapUtils.isEmpty(userProfile)) {
+				logger.error("ProfileService : onboardNetworkHubUser : User profile not found for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.NOT_FOUND.toString());
+				response.getParams().setErrmsg("User profile not found");
+				response.setResponseCode(HttpStatus.NOT_FOUND);
+				return response;
+			}
 
-			// Enrich the user profile with id-mapping lookup.
 			Map<String, Object> profileDetails = (Map<String, Object>) userProfile.get(Constants.PROFILE_DETAILS_KEY);
+			if (MapUtils.isEmpty(profileDetails)) {
+				logger.error("ProfileService : onboardNetworkHubUser : Profile details not found for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.NOT_FOUND.toString());
+				response.getParams().setErrmsg("Profile details not found");
+				response.setResponseCode(HttpStatus.NOT_FOUND);
+				return response;
+			}
+
 			List<Map<String, Object>> professionalDetails = (List<Map<String, Object>>) profileDetails.get(Constants.PROFESSIONAL_DETAILS);
+			if (CollectionUtils.isEmpty(professionalDetails)) {
+				logger.error("ProfileService : onboardNetworkHubUser : Professional details not found for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.NOT_FOUND.toString());
+				response.getParams().setErrmsg("Professional details not found");
+				response.setResponseCode(HttpStatus.NOT_FOUND);
+				return response;
+			}
+
 			String designation = (String) professionalDetails.get(0).get(Constants.DESIGNATION);
 			List<String> role = getUserRoles(userId, (String) userProfile.get(Constants.ROOT_ORG_ID));
+			if (CollectionUtils.isEmpty(role)) {
+				logger.error("ProfileService : onboardNetworkHubUser : User roles not found for userId: {}", userId);
+				response.getParams().setStatus(HttpStatus.NOT_FOUND.toString());
+				response.getParams().setErrmsg("User roles not found");
+				response.setResponseCode(HttpStatus.NOT_FOUND);
+				return response;
+			}
+
 			Node node = new Node(designation, userId, role, (String) userProfile.get(Constants.ROOT_ORG_ID), new Date().toString());
 			if (connectionService.updateUserProfileInNeo4j(node)) {
 				logger.info("ProfileService : onboardNetworkHubUser : User {} onboarded successfully in network hub", userId);
 				response.getParams().setStatus(HttpStatus.OK.toString());
-				response.getResult().put(Constants.MESSAGE, "User onboarded successfully in network hub");
+				response.getResult().put(Constants.MESSAGE, Constants.USER_ONBOARDED_NETWORK_HUB);
 				response.setResponseCode(HttpStatus.OK);
 			} else {
 				logger.error("ProfileService : onboardNetworkHubUser : Failed to onboard user {} in network hub", userId);
