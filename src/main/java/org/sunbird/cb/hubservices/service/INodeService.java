@@ -80,4 +80,11 @@ public interface INodeService {
 	 * @return A list of maps containing the total count of connections for each user based on their status.
 	 */
 	List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusList, String facets);
+
+	/** Create/Update user profile in Neo4j.
+	 *
+	 * @param node The Node object containing user profile details to be created/updated.
+	 * @return true if the update was successful, false otherwise.
+	 */
+	boolean updateUserProfileInNeo4j(Node node);
 }

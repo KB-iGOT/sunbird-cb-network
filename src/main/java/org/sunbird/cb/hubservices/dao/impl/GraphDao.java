@@ -693,6 +693,7 @@ public class GraphDao implements IGraphDao {
                 "CASE " +
                 "  WHEN r.status = 'Pending' AND (u)-[r]->(other) THEN 'Requested' " +
                 "  WHEN r.status = 'Pending' AND (u)<-[r]-(other) THEN 'Received' " +
+                "  WHEN r.status = 'Blocked' AND (u)-[r]->(other) THEN 'Blocked Outgoing' " +
                 "  ELSE r.status " +
                 "END AS status, count(*) AS count " +
                 "ORDER BY u.userId, status";

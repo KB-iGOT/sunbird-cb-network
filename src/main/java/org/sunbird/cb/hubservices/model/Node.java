@@ -1,6 +1,7 @@
 package org.sunbird.cb.hubservices.model;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.Map;
 
 @Getter
 @Setter
+@NoArgsConstructor
 public class Node {
 
 	private String userId;
@@ -33,5 +35,13 @@ public class Node {
 		this.createdAt = createdAt;
 		this.updatedAt = updatedAt;
 		this.status = status;
+	}
+
+	public Node(String designation, String userId, List<String> role, String rootorgid, String updatedAt) {
+		this.userId= userId;
+		this.designation = designation;
+		this.roles = role;
+		this.organisationId = rootorgid;
+		this.updatedAt = updatedAt;
 	}
 }
