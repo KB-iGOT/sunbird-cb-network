@@ -319,8 +319,8 @@ public class GraphDao implements IGraphDao {
                 "WHERE a.userId = $fromUser AND b.userId = $toUser " +
                 "RETURN " +
                 "CASE " +
-                "  WHEN r.status = 'Pending' AND (a)-[r]->(b) THEN 'Pending' " +
-                "  WHEN r.status = 'Pending' AND (a)<-[r]-(b) THEN 'Received' " +
+                "  WHEN r.status = 'Pending' AND (a)<-[r]-(b) THEN 'Pending' " +
+                "  WHEN r.status = 'Pending' AND (a)-[r]->(b) THEN 'Received' " +
                 "  ELSE r.status " +
                 "END AS status, " +
                 "r.createdAt AS createdAt, " +
