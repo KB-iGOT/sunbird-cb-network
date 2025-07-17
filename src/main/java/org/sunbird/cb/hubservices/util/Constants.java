@@ -164,7 +164,8 @@ public class Constants {
 	public static final String USER_ONBOARDED_NETWORK_HUB ="User onboarded successfully in network hub" ;
 	public static final String CREATED_AT = "createdAt" ;
 	public static final String UPDATED_AT = "updatedAt" ;
-	
+	public static final String REMOVED = "Removed";
+
 	public enum Graph {
 		ID("userId"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
 		UPDATED_AT("updatedAt"), USER_ID("userId");
