@@ -681,8 +681,10 @@ public class GraphDao implements IGraphDao {
                     "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
                     "WHERE u2.userId <> u1.userId " +
                     "AND 'MENTOR' IN u2.role " +
+                    "AND NOT (u1)-[:connect {status: 'Pending'}]-(u2) " +
+                    "AND NOT (u1)-[:connect {status: 'Approved'}]-(u2) " +
+                    "AND NOT (u1)-[:connect {status: 'Blocked'}]-(u2) " +
                     "OPTIONAL MATCH (u1)-[r]-(u2) " +
-                    "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
                     "RETURN count(u2) AS totalCount";
             Statement statement = new Statement(countQuery, parameters);
             StatementResult result = transaction.run(statement);
