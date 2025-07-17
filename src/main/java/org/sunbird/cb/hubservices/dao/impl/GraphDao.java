@@ -542,6 +542,8 @@ public class GraphDao implements IGraphDao {
                     blockedUsersData.put(Constants.USER_ID, blockedUserRecord.get("blockedUserId").asString());
                     blockedUsersData.put(Constants.DESIGNATION, blockedUserRecord.get("blockedUserDesignation").asString());
                     blockedUsersData.put(Constants.ORGANISATION_ID, blockedUserRecord.get("blockedOrganisationId").asString());
+                    blockedUsersData.put(Constants.CREATED_AT, blockedUserRecord.get(Constants.CREATED_AT).asString());
+                    blockedUsersData.put(Constants.UPDATED_AT, blockedUserRecord.get(Constants.UPDATED_AT).asString());
                     blockedUsersList.add(blockedUsersData);
                 }
                 logger.info("Blocked users for user {} fetched successfully. Found {} blocked users",
@@ -571,7 +573,9 @@ public class GraphDao implements IGraphDao {
                 "blocked.userId AS blockedUserId, " +
                 "blocked.designation AS blockedUserDesignation, " +
                 "blocked.organisationId AS blockedOrganisationId, " +
-                "r.status AS connectionStatus " +
+                "r.status AS connectionStatus, " +
+                "r.createdAt AS createdAt, " +
+                "r.updatedAt AS updatedAt " +
                 "SKIP $offset LIMIT $size";
         return new Statement(blockedUsersQuery, parameters);
     }

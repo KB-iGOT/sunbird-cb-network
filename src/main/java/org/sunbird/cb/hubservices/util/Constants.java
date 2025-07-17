@@ -165,6 +165,7 @@ public class Constants {
 	public static final String CREATED_AT = "createdAt" ;
 	public static final String UPDATED_AT = "updatedAt" ;
 	public static final String REMOVED = "Removed";
+	public static final String DATE_FORMAT_SORTING = "EEE MMM dd HH:mm:ss z yyyy";
 
 	public enum Graph {
 		ID("userId"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
