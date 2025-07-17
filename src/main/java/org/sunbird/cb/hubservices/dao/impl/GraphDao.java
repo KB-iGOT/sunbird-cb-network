@@ -316,7 +316,16 @@ public class GraphDao implements IGraphDao {
     public Map<String, String> getRelationshipBetweenUsers(String fromUser, String toUser) {
         Map<String, String> relationshipProps = new HashMap<>();
         String query = "MATCH (a:" + label + ")-[r:connect]-(b:" + label + ") " +
-                "WHERE a.userId = $fromUser AND b.userId = $toUser RETURN r LIMIT 1";
+                "WHERE a.userId = $fromUser AND b.userId = $toUser " +
+                "RETURN " +
+                "CASE " +
+                "  WHEN r.status = 'Pending' AND (a)-[r]->(b) THEN 'Pending' " +
+                "  WHEN r.status = 'Pending' AND (a)<-[r]-(b) THEN 'Received' " +
+                "  ELSE r.status " +
+                "END AS status, " +
+                "r.createdAt AS createdAt, " +
+                "r.updatedAt AS updatedAt " +
+                "LIMIT 1";
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.FROM_USER, fromUser);
         params.put(Constants.TO_USER, toUser);
@@ -325,9 +334,10 @@ public class GraphDao implements IGraphDao {
             Statement statement = new Statement(query, params);
             StatementResult result = session.run(statement);
             if (result.hasNext()) {
-                Record userRelationShipRecord = result.next();
-                org.neo4j.driver.v1.types.Relationship rel = userRelationShipRecord.get("r").asRelationship();
-                rel.asMap().forEach((k, v) -> relationshipProps.put(k, v != null ? v.toString() : null));
+                Record relationShipRecord = result.next();
+                relationshipProps.put(Constants.STATUS, relationShipRecord.get(Constants.STATUS).isNull() ? null : relationShipRecord.get(Constants.STATUS).asString());
+                relationshipProps.put(Constants.CREATED_AT, relationShipRecord.get(Constants.CREATED_AT).isNull() ? null : relationShipRecord.get(Constants.CREATED_AT).asString());
+                relationshipProps.put(Constants.UPDATED_AT, relationShipRecord.get(Constants.UPDATED_AT).isNull() ? null : relationShipRecord.get(Constants.UPDATED_AT).asString());
             }
         } catch (Exception e) {
             logger.error(String.format("Error fetching relationship between %s and %s : %s", fromUser, toUser, e));
