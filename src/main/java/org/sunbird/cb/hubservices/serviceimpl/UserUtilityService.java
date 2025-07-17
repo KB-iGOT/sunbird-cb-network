@@ -155,7 +155,7 @@ public class UserUtilityService implements IUserUtility {
         Map<String, Object> tagRes = new HashMap<>();
         ArrayNode arrayRes = getUserInfoFromSearchBasedOnUserIds(includeFields, connectionUserIds, userInfoMap);
         logger.info("user search result :: {}", new PrettyPrintingMap<>(tagRes));
-        return sortArrayNodesByDate(arrayRes, mapper);
+        return sortArrayNodesByDate(arrayRes);
     }
 
     private ArrayNode getUserInfoFromSearchBasedOnUserIds(List<String> includeFields, List<String> connectionUserIds, Map<String, Map<String, Object>> userInfoMap) {
@@ -286,7 +286,7 @@ public class UserUtilityService implements IUserUtility {
      * @param mapper    the ObjectMapper used to create the sorted ArrayNode
      * @return a new ArrayNode sorted by the latest date in descending order
      */
-    public ArrayNode sortArrayNodesByDate(ArrayNode nodeArray, ObjectMapper mapper) {
+    public ArrayNode sortArrayNodesByDate(ArrayNode nodeArray) {
         SimpleDateFormat sdf = new SimpleDateFormat(Constants.DATE_FORMAT_SORTING, Locale.ENGLISH);
         List<JsonNode> nodeList = new ArrayList<>();
         nodeArray.forEach(nodeList::add);
