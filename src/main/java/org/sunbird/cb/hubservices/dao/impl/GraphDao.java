@@ -542,6 +542,8 @@ public class GraphDao implements IGraphDao {
                     blockedUsersData.put(Constants.USER_ID, blockedUserRecord.get("blockedUserId").asString());
                     blockedUsersData.put(Constants.DESIGNATION, blockedUserRecord.get("blockedUserDesignation").asString());
                     blockedUsersData.put(Constants.ORGANISATION_ID, blockedUserRecord.get("blockedOrganisationId").asString());
+                    blockedUsersData.put(Constants.CREATED_AT, blockedUserRecord.get(Constants.CREATED_AT).asString());
+                    blockedUsersData.put(Constants.UPDATED_AT, blockedUserRecord.get(Constants.UPDATED_AT).asString());
                     blockedUsersList.add(blockedUsersData);
                 }
                 logger.info("Blocked users for user {} fetched successfully. Found {} blocked users",
@@ -571,7 +573,9 @@ public class GraphDao implements IGraphDao {
                 "blocked.userId AS blockedUserId, " +
                 "blocked.designation AS blockedUserDesignation, " +
                 "blocked.organisationId AS blockedOrganisationId, " +
-                "r.status AS connectionStatus " +
+                "r.status AS connectionStatus, " +
+                "r.createdAt AS createdAt, " +
+                "r.updatedAt AS updatedAt " +
                 "SKIP $offset LIMIT $size";
         return new Statement(blockedUsersQuery, parameters);
     }
@@ -645,8 +649,10 @@ public class GraphDao implements IGraphDao {
                             "    OR " +
                             "    (u2.designation = u1.designation AND u2.organisationId <> u1.organisationId AND u2.userId <> u1.userId) " +
                             ") " +
+                            "AND NOT (u1)-[:connect {status: 'Pending'}]-(u2) " +
+                            "AND NOT (u1)-[:connect {status: 'Approved'}]-(u2) " +
+                            "AND NOT (u1)-[:connect {status: 'Blocked'}]-(u2) " +
                             "OPTIONAL MATCH (u1)-[r]-(u2) " +
-                            "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
                             "RETURN count(u2) AS totalCount";
             Statement statement = new Statement(countQuery, parameters);
             StatementResult result = transaction.run(statement);
@@ -675,8 +681,10 @@ public class GraphDao implements IGraphDao {
                     "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
                     "WHERE u2.userId <> u1.userId " +
                     "AND 'MENTOR' IN u2.role " +
+                    "AND NOT (u1)-[:connect {status: 'Pending'}]-(u2) " +
+                    "AND NOT (u1)-[:connect {status: 'Approved'}]-(u2) " +
+                    "AND NOT (u1)-[:connect {status: 'Blocked'}]-(u2) " +
                     "OPTIONAL MATCH (u1)-[r]-(u2) " +
-                    "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
                     "RETURN count(u2) AS totalCount";
             Statement statement = new Statement(countQuery, parameters);
             StatementResult result = transaction.run(statement);

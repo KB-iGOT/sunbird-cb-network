@@ -1,5 +1,6 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -410,7 +411,7 @@ public class ConnectionService implements IConnectionService {
 				logger.error("Failed to enrich user info... Exception: " + e.getMessage(), e);
 			}
 		}
-		return nodeMap.values();
+		return sortNodesByDate(nodeMap.values());
 	}
 
 	@Override
@@ -535,5 +536,54 @@ public class ConnectionService implements IConnectionService {
 	@Override
 	public boolean updateUserProfileInNeo4j(Node node) {
 		return nodeService.updateUserProfileInNeo4j(node);
+	}
+
+	/**
+	 * Sorts a collection of nodes by their date attributes (updatedAt or createdAt).
+	 *
+	 * @param nodes The collection of nodes to be sorted.
+	 * @return A sorted collection of nodes based on their date attributes.
+	 */
+	private Collection<Node> sortNodesByDate(Collection<Node> nodes) {
+		SimpleDateFormat sdf = new SimpleDateFormat(Constants.DATE_FORMAT_SORTING, Locale.ENGLISH);
+		return nodes.stream()
+				.sorted((n1, n2) -> {
+					Date date1 = getRelevantDate(n1, sdf);
+					Date date2 = getRelevantDate(n2, sdf);
+					if (date1 == null && date2 == null) return 0;
+					if (date1 == null) return 1;
+					if (date2 == null) return -1;
+					return date2.compareTo(date1); // descending order
+				})
+				.collect(Collectors.toList());
+	}
+
+	/**
+	 * Retrieves the relevant date for a node based on its createdAt and updatedAt attributes.
+	 *
+	 * @param node The node for which the date is to be retrieved.
+	 * @param sdf  The SimpleDateFormat used for parsing date strings.
+	 * @return The most relevant date (either createdAt or updatedAt) or null if both are not available.
+	 */
+	private Date getRelevantDate(Node node, SimpleDateFormat sdf) {
+		Date createdDate = null;
+		Date updatedDate = null;
+		try {
+			if (StringUtils.isNotEmpty(node.getCreatedAt())) {
+				createdDate = sdf.parse(node.getCreatedAt());
+			}
+		} catch (Exception e) {
+			logger.error(String.format("Error parsing createdAt for node %s: %s", node.getUserId(), e.getMessage()));
+		}
+		try {
+			if (StringUtils.isNotEmpty(node.getUpdatedAt())) {
+				updatedDate = sdf.parse(node.getUpdatedAt());
+			}
+		} catch (Exception e) {
+			logger.error(String.format("Error parsing updatedAt for node %s: %s", node.getUserId(), e.getMessage()));
+		}
+		if (createdDate == null) return updatedDate;
+		if (updatedDate == null) return createdDate;
+		return createdDate.after(updatedDate) ? createdDate : updatedDate;
 	}
 }
