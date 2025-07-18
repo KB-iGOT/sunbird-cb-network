@@ -257,7 +257,7 @@ public class UserUtilityService implements IUserUtility {
         profileDetails.put(ProfileUtils.Profile.ID, userId);
         profileDetails.put(ProfileUtils.Profile.AT_ID, userId);
         profileDetails.put(ProfileUtils.Profile.PROFILE_IMAGE_URL, getNodeText(profileDetails, Constants.PROFILE_IMAGE_URL));
-        profileDetails.put(ProfileUtils.Profile.PROFILE_DETAILS_PROFILE_BANNER_IMAGE_URL, getNodeText(profileDetails, Constants.PROFILE_DETAILS_PROFILE_BANNER_IMAGE_URL));
+        profileDetails.put(ProfileUtils.Profile.PROFILE_DETAILS_PROFILE_BANNER_IMAGE_URL, getNodeText(profileDetails, Constants.PROFILE_BANNER_IMAGE_URL));
         if (userInfo != null) {
             profileDetails.put(Constants.ROLE, mapper.valueToTree(userInfo.get(Constants.ROLE)));
             profileDetails.put(Constants.ROOT_ORG_ID, (String) userInfo.get(Constants.ORGANISATION_ID));
