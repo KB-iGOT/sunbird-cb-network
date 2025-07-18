@@ -141,10 +141,8 @@ public class ConnectionService implements IConnectionService {
 						notificationTriggerService.triggerNotification(Constants.ACCEPTED_CONNECTION_REQUEST, Constants.ALERT,
 								Arrays.asList(request.getUserIdTo()), firstName, data);
 
-					} else if (request.getStatus().equalsIgnoreCase(Constants.Status.REJECTED)) {
-						notificationTriggerService.triggerNotification(Constants.REJECTED_CONNECTION_REQUEST, Constants.ALERT,
-								Arrays.asList(request.getUserIdTo()), firstName, data);
-
+					} else {
+						logger.info("No need to send notification.");
 					}
 					response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 					response.put(Constants.ResponseStatus.STATUS, HttpStatus.CREATED);
