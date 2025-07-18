@@ -316,7 +316,16 @@ public class GraphDao implements IGraphDao {
     public Map<String, String> getRelationshipBetweenUsers(String fromUser, String toUser) {
         Map<String, String> relationshipProps = new HashMap<>();
         String query = "MATCH (a:" + label + ")-[r:connect]-(b:" + label + ") " +
-                "WHERE a.userId = $fromUser AND b.userId = $toUser RETURN r LIMIT 1";
+                "WHERE a.userId = $fromUser AND b.userId = $toUser " +
+                "RETURN " +
+                "CASE " +
+                "  WHEN r.status = 'Pending' AND (a)-[r]->(b) THEN 'Pending' " +
+                "  WHEN r.status = 'Pending' AND (a)<-[r]-(b) THEN 'Received' " +
+                "  ELSE r.status " +
+                "END AS status, " +
+                "r.createdAt AS createdAt, " +
+                "r.updatedAt AS updatedAt " +
+                "LIMIT 1";
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.FROM_USER, fromUser);
         params.put(Constants.TO_USER, toUser);
@@ -325,9 +334,10 @@ public class GraphDao implements IGraphDao {
             Statement statement = new Statement(query, params);
             StatementResult result = session.run(statement);
             if (result.hasNext()) {
-                Record userRelationShipRecord = result.next();
-                org.neo4j.driver.v1.types.Relationship rel = userRelationShipRecord.get("r").asRelationship();
-                rel.asMap().forEach((k, v) -> relationshipProps.put(k, v != null ? v.toString() : null));
+                Record relationShipRecord = result.next();
+                relationshipProps.put(Constants.STATUS, relationShipRecord.get(Constants.STATUS).isNull() ? null : relationShipRecord.get(Constants.STATUS).asString());
+                relationshipProps.put(Constants.CREATED_AT, relationShipRecord.get(Constants.CREATED_AT).isNull() ? null : relationShipRecord.get(Constants.CREATED_AT).asString());
+                relationshipProps.put(Constants.UPDATED_AT, relationShipRecord.get(Constants.UPDATED_AT).isNull() ? null : relationShipRecord.get(Constants.UPDATED_AT).asString());
             }
         } catch (Exception e) {
             logger.error(String.format("Error fetching relationship between %s and %s : %s", fromUser, toUser, e));
@@ -532,6 +542,8 @@ public class GraphDao implements IGraphDao {
                     blockedUsersData.put(Constants.USER_ID, blockedUserRecord.get("blockedUserId").asString());
                     blockedUsersData.put(Constants.DESIGNATION, blockedUserRecord.get("blockedUserDesignation").asString());
                     blockedUsersData.put(Constants.ORGANISATION_ID, blockedUserRecord.get("blockedOrganisationId").asString());
+                    blockedUsersData.put(Constants.CREATED_AT, blockedUserRecord.get(Constants.CREATED_AT).asString());
+                    blockedUsersData.put(Constants.UPDATED_AT, blockedUserRecord.get(Constants.UPDATED_AT).asString());
                     blockedUsersList.add(blockedUsersData);
                 }
                 logger.info("Blocked users for user {} fetched successfully. Found {} blocked users",
@@ -561,7 +573,9 @@ public class GraphDao implements IGraphDao {
                 "blocked.userId AS blockedUserId, " +
                 "blocked.designation AS blockedUserDesignation, " +
                 "blocked.organisationId AS blockedOrganisationId, " +
-                "r.status AS connectionStatus " +
+                "r.status AS connectionStatus, " +
+                "r.createdAt AS createdAt, " +
+                "r.updatedAt AS updatedAt " +
                 "SKIP $offset LIMIT $size";
         return new Statement(blockedUsersQuery, parameters);
     }
@@ -635,8 +649,10 @@ public class GraphDao implements IGraphDao {
                             "    OR " +
                             "    (u2.designation = u1.designation AND u2.organisationId <> u1.organisationId AND u2.userId <> u1.userId) " +
                             ") " +
+                            "AND NOT (u1)-[:connect {status: 'Pending'}]-(u2) " +
+                            "AND NOT (u1)-[:connect {status: 'Approved'}]-(u2) " +
+                            "AND NOT (u1)-[:connect {status: 'Blocked'}]-(u2) " +
                             "OPTIONAL MATCH (u1)-[r]-(u2) " +
-                            "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
                             "RETURN count(u2) AS totalCount";
             Statement statement = new Statement(countQuery, parameters);
             StatementResult result = transaction.run(statement);
@@ -665,8 +681,10 @@ public class GraphDao implements IGraphDao {
                     "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
                     "WHERE u2.userId <> u1.userId " +
                     "AND 'MENTOR' IN u2.role " +
+                    "AND NOT (u1)-[:connect {status: 'Pending'}]-(u2) " +
+                    "AND NOT (u1)-[:connect {status: 'Approved'}]-(u2) " +
+                    "AND NOT (u1)-[:connect {status: 'Blocked'}]-(u2) " +
                     "OPTIONAL MATCH (u1)-[r]-(u2) " +
-                    "WHERE r IS NULL OR (NOT r.status IN ['Approved','Pending', 'Blocked']) " +
                     "RETURN count(u2) AS totalCount";
             Statement statement = new Statement(countQuery, parameters);
             StatementResult result = transaction.run(statement);
