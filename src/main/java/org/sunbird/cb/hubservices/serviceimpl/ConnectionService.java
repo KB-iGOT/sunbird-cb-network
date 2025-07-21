@@ -377,6 +377,7 @@ public class ConnectionService implements IConnectionService {
 							Node node = nodeMap.get(userId);
 							node.setFullName((String) user.get(Constants.FULL_NAME));
 							node.setDepartmentName((String) user.get(Constants.CHANNEL));
+							node.setId(userId);
 							JsonNode root = objectMapper.readTree((String) user.get(Constants.PROFILE_DETAILS));
 							if (root != null) {
 								if (root.hasNonNull(Constants.PROFESSIONAL_DETAILS)) {
