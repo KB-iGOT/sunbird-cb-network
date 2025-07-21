@@ -13,6 +13,7 @@ import java.util.Map;
 public class Node {
 
 	private String userId;
+	private String id;
 	private String createdAt;
 	private String updatedAt;
 	private String fullName;
