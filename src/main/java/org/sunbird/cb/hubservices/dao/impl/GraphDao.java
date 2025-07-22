@@ -321,6 +321,8 @@ public class GraphDao implements IGraphDao {
                 "CASE " +
                 "  WHEN r.status = 'Pending' AND (a)-[r]->(b) THEN 'Pending' " +
                 "  WHEN r.status = 'Pending' AND (a)<-[r]-(b) THEN 'Received' " +
+                "  WHEN r.status = 'Blocked' AND (a)-[r]->(b) THEN 'Blocked Outgoing' "+
+                "  WHEN r.status = 'Blocked' AND (a)<-[r]-(b) THEN 'Blocked Incoming' " +
                 "  ELSE r.status " +
                 "END AS status, " +
                 "r.createdAt AS createdAt, " +

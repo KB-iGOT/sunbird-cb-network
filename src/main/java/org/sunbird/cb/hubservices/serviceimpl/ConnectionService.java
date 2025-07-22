@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,15 +80,25 @@ public class ConnectionService implements IConnectionService {
 					.fetchUsingGetWithHeadersProfile(connectionProperties.getLearnerServiceHost() + connectionProperties.getUserReadV5() + userId,
 							propertyMap);
 			Map<String, Object> resultMap = (Map<String, Object>) readData.get(Constants.RESULT);
-			Map<String, Object> responseMap = (Map<String, Object>) resultMap.get(Constants.RESPONSE);
-			List<Map<String, Object>> roles = (List<Map<String, Object>>) responseMap.get(Constants.ROLES);
-			List<String> roleList = roles.stream()
-					.map(roleMap -> (String) roleMap.get(Constants.ROLE))
-					.filter(Objects::nonNull)
-					.collect(Collectors.toList());
-			Map<String, Object> profileDetails = (Map<String, Object>) responseMap.get(Constants.PROFILE_DETAILS_KEY);
-			List<Map<String, Object>> professionalDetails = (List<Map<String, Object>>) profileDetails.get(Constants.PROFESSIONAL_DETAILS);
-			String designation = (String) professionalDetails.get(0).get(Constants.DESIGNATION);
+			String designation = "";
+			List<String> roleList = new ArrayList<>();
+			Map<String, Object> responseMap = new HashMap<>();
+			if (MapUtils.isNotEmpty(resultMap)) {
+				responseMap = (Map<String, Object>) resultMap.get(Constants.RESPONSE);
+				List<Map<String, Object>> roles = (List<Map<String, Object>>) responseMap.get(Constants.ROLES);
+				roleList = roles.stream()
+						.map(roleMap -> (String) roleMap.get(Constants.ROLE))
+						.filter(Objects::nonNull)
+						.collect(Collectors.toList());
+				Map<String, Object> profileDetails = (Map<String, Object>) responseMap.get(Constants.PROFILE_DETAILS_KEY);
+				List<Map<String, Object>> professionalDetails = null;
+				if (MapUtils.isNotEmpty(profileDetails)) {
+					professionalDetails = (List<Map<String, Object>>) profileDetails.get(Constants.PROFESSIONAL_DETAILS);
+				}
+				if (CollectionUtils.isNotEmpty(professionalDetails)) {
+					designation = (String) professionalDetails.get(0).get(Constants.DESIGNATION);
+				}
+			}
 			if (userId.equals(connectionRequest.getUserIdFrom())) {
 				from.setUserId(userId);
 				from.setDesignation(designation);
