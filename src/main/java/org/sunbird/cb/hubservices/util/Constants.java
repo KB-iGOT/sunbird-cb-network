@@ -199,6 +199,8 @@ public class Constants {
 		public static final String PENDING = "Pending";
 		public static final String DELETED = "Deleted";
 		public static final String BLOCKED = "Blocked";
+		public static final String UNBLOCKED = "Unblocked";
+		public static final String REMOVED = "Removed";
 	}
 
 	public static class Message {
