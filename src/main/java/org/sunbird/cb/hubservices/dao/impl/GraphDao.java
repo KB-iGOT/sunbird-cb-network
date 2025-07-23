@@ -78,7 +78,15 @@ public class GraphDao implements IGraphDao {
 
             Statement statement = new Statement(queryNodeExistWithReverseEdge, parameters);
             StatementResult result = transaction.run(statement);
-            int recordSize = result.list().size();
+            List<Record> userRecords = result.list();
+            int recordSize = userRecords.size();
+            for (Record userRecord : userRecords) {
+                if (Constants.Status.REJECTED.equalsIgnoreCase(userRecord.get(Constants.STATUS).asString()) ||
+                        Constants.Status.UNBLOCKED.equalsIgnoreCase(userRecord.get(Constants.STATUS).asString()) ||
+                        Constants.Status.REMOVED.equalsIgnoreCase(userRecord.get(Constants.STATUS).asString())) {
+                    recordSize = 0;
+                }
+            }
             result.consume();
             if (recordSize != 0) {
                 if (logger.isDebugEnabled())
