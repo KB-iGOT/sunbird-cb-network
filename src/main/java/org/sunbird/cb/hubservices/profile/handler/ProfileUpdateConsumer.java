@@ -15,6 +15,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
+import org.sunbird.cb.hubservices.serviceimpl.ProfileService;
+import org.sunbird.cb.hubservices.util.Constants;
 
 @Component
 @Slf4j
@@ -22,6 +24,9 @@ public class ProfileUpdateConsumer {
 
     @Autowired
     private ObjectMapper mapper;
+
+    @Autowired
+    private ProfileService profileService;
 
     @KafkaListener(topics = "${kafka.topic.name.user.profile.update}", groupId = "${kafka.group.name.user.profile.update}")
     public void userProfileUpdateConsumer(ConsumerRecord<String, String> data) throws IOException {
@@ -34,7 +39,7 @@ public class ProfileUpdateConsumer {
                 if (MapUtils.isNotEmpty(userData)) {
                     // Fetch user data from DB and update cache
                     CompletableFuture.runAsync(() -> {
-                        // TODO 
+                        profileService.onboardNetworkHubUser((String)userData.get(Constants.USER_ID));
                         // Get Group and Designation value from the user object and update the same
                         // in the Neo4J
                     });
