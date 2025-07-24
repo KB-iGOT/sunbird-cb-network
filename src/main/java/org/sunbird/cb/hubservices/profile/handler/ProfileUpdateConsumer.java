@@ -38,12 +38,9 @@ public class ProfileUpdateConsumer {
                 });
                 if (MapUtils.isNotEmpty(userData)) {
                     // Fetch user data from DB and update cache
-                    CompletableFuture.runAsync(() -> {
-                        profileService.onboardNetworkHubUser((String)userData.get(Constants.USER_ID));
-                        // Get Group and Designation value from the user object and update the same
-                        // in the Neo4J
-                    });
-
+                    CompletableFuture.runAsync(() -> profileService.onboardNetworkHubUser((String) userData.get(Constants.USER_ID)));
+                    // Get Group and Designation value from the user object and update the same
+                    // in the Neo4J
                 } else {
                     log.error("Error in userProfileUpdated: Invalid userData in Kafka Msg");
                 }
