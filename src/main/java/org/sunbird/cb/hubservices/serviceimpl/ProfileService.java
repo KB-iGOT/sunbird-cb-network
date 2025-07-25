@@ -505,7 +505,7 @@ public class ProfileService implements IProfileService {
 		return false;
 	}
 
-	public SBApiResponse onboardNetworkHubUser(String userId) {
+	public SBApiResponse upsertUserInformation(String userId) {
 		SBApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_ONBOARD_NETWORK_HUB_USER);
 		try {
 			Map<String, Object> userProfile = userUtilityService.readUserDataFromDB(userId);

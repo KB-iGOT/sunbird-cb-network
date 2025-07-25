@@ -25,7 +25,7 @@ public class ProfileUpdateConsumer {
     @Autowired
     private ObjectMapper mapper;
 
-    @Autowired
+    @Autowired  
     private ProfileService profileService;
 
     @KafkaListener(topics = "${kafka.topic.name.user.profile.update}", groupId = "${kafka.group.name.user.profile.update}")
@@ -38,7 +38,7 @@ public class ProfileUpdateConsumer {
                 });
                 if (MapUtils.isNotEmpty(userData)) {
                     // Fetch user data from DB and update cache
-                    CompletableFuture.runAsync(() -> profileService.onboardNetworkHubUser((String) userData.get(Constants.USER_ID)));
+                    CompletableFuture.runAsync(() -> profileService.upsertUserInformation((String) userData.get(Constants.USER_ID)));
                     // Get Group and Designation value from the user object and update the same
                     // in the Neo4J
                 } else {
