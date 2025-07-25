@@ -28,5 +28,5 @@ public interface IProfileService {
 
 	SBApiResponse fetchTotalConnectionsCountByStatus(String authToken, Map<String, Object> request);
 
-	SBApiResponse onboardNetworkHubUser(String userId);
+	SBApiResponse upsertUserInformation(String userId);
 }

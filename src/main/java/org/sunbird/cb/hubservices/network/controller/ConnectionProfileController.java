@@ -105,8 +105,8 @@ public class ConnectionProfileController {
 	}
 
 	@GetMapping(value = "/network/onboard/user/{userId}")
-	public ResponseEntity<SBApiResponse> onboardNetworkHubUser(@PathVariable(Constants.USER_ID_RQST) String userId) {
-		SBApiResponse response = profileService.onboardNetworkHubUser(userId);
+	public ResponseEntity<SBApiResponse> upsertUserInformation(@PathVariable(Constants.USER_ID_RQST) String userId) {
+		SBApiResponse response = profileService.upsertUserInformation(userId);
 		return new ResponseEntity<>(response, response.getResponseCode());
 	}
 }
