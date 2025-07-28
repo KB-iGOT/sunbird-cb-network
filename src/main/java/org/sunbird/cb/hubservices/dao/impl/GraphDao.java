@@ -86,6 +86,7 @@ public class GraphDao implements IGraphDao {
                     if (Constants.Status.REJECTED.equalsIgnoreCase(userRecord.get(Constants.STATUS).asString()) ||
                             Constants.Status.UNBLOCKED.equalsIgnoreCase(userRecord.get(Constants.STATUS).asString()) ||
                             Constants.Status.WITHDRAWN.equalsIgnoreCase(userRecord.get(Constants.STATUS).asString()) ||
+                            Constants.Status.APPROVED.equalsIgnoreCase(userRecord.get(Constants.STATUS).asString()) ||
                             Constants.Status.REMOVED.equalsIgnoreCase(userRecord.get(Constants.STATUS).asString())) {
                         String deleteQuery = "MATCH (n:" + label + ")<-[r:connect]-(n1:" + label + ") " +
                                 "WHERE n.userId = $fromUUID AND n1.userId = $toUUID DELETE r";
