@@ -201,6 +201,7 @@ public class Constants {
 		public static final String BLOCKED = "Blocked";
 		public static final String UNBLOCKED = "Unblocked";
 		public static final String REMOVED = "Removed";
+		public static final String WITHDRAWN = "Withdrawn";
 	}
 
 	public static class Message {
