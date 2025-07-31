@@ -118,4 +118,9 @@ public class ConnectionProperties {
 	@Value("${client.http.request.factory.pooling.default.max.per.route}")
 	private Integer clientHttpRequestFactoryPoolingDefaultMaxPerRoute;
 
+	@Value("${user.recommendation.cache.limit}")
+	private Integer userRecommendationCacheLimit;
+
+	@Value("${user.redis.count.timeout}")
+	private Integer redisUserCountTimeOut;
 }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.elasticsearch.common.recycler.Recycler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,7 @@ import org.sunbird.cb.hubservices.service.IConnectionService;
 import org.sunbird.cb.hubservices.service.INodeService;
 import org.sunbird.cb.hubservices.service.IProfileService;
 import org.sunbird.cb.hubservices.service.IUserUtility;
+import org.sunbird.cb.hubservices.util.ConnectionProperties;
 import org.sunbird.cb.hubservices.util.Constants;
 import org.sunbird.cb.hubservices.util.NetworkServerProperties;
 
@@ -62,6 +64,9 @@ public class ProfileService implements IProfileService {
 
 	@Autowired
 	UserUtilityService userUtilityService;
+
+	@Autowired
+	private ConnectionProperties connectionProperties;
 
 
     @Autowired
@@ -164,7 +169,7 @@ public class ProfileService implements IProfileService {
 			if (validatePaginationParams(request, response)) {
 				return response;
 			}
-			Integer count = connectionService.getCountForRecommendedUsers(userId);
+			int count = getCountForRecommendedUsers(userId);
 			if(count == 0){
 				logger.info("ProfileService : findRecommendations : Recommended Users Count is 0 for userId: {}", userId);
 				response.getParams().setStatus(HttpStatus.OK.toString());
@@ -172,6 +177,8 @@ public class ProfileService implements IProfileService {
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
+			SBApiResponse cacheResponse = fetchAndCacheRecommendedUsers(request, userId, response, count);
+			if (cacheResponse != null) return cacheResponse;
 			List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
 			if(CollectionUtils.isEmpty(recommendationUsersList)){
 				logger.info("ProfileService : findRecommendations : Recommended Users List is empty for userId: {}", userId);
@@ -180,7 +187,7 @@ public class ProfileService implements IProfileService {
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
-            enrichUserInformation(recommendationUsersList, response, userId, Constants.USERS);
+			enrichUserInformationForUserRecommendation(recommendationUsersList, response);
             response.getResult().put(Constants.COUNT, count);
 			return response;
 		} catch (Exception e) {
@@ -608,5 +615,121 @@ public class ProfileService implements IProfileService {
 				.distinct()
 				.collect(Collectors.toList());
 
+	}
+
+
+	/**
+	 * Retrieves the count of recommended users for a given user ID.
+	 * It first checks the Redis cache for the count and if not found, fetches it from the connection service.
+	 * The count is then cached in Redis for future requests.
+	 *
+	 * @param userId The ID of the user for whom recommendations are being fetched.
+	 * @return The count of recommended users.
+	 */
+	private int getCountForRecommendedUsers(String userId) {
+		int count;
+		String userRecommendationCount = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USER_COUNT + Constants.UNDER_SCORE + userId);
+		if (!StringUtils.isEmpty(userRecommendationCount)) {
+			count = Integer.parseInt(userRecommendationCount);
+		} else {
+			count = connectionService.getCountForRecommendedUsers(userId);
+			redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USER_COUNT + Constants.UNDER_SCORE + userId, count, connectionProperties.getRedisUserCountTimeOut());
+		}
+		return count;
+	}
+
+
+	/**
+	 * Retrieves the SBApiResponse for user recommendations based on the request parameters.
+	 * It checks if the offset and size are within the cache limits and fetches data from Redis if available.
+	 * If not available, it fetches from the connection service and caches the results.
+	 *
+	 * @param request  The request map containing pagination parameters.
+	 * @param userId   The ID of the user for whom recommendations are being fetched.
+	 * @param response The SBApiResponse to populate with results.
+	 * @param count    The total count of recommended users.
+	 * @return SBApiResponse containing the list of recommended users or null if not found in cache.
+	 * @throws IOException If there is an error reading from Redis cache.
+	 */
+	private SBApiResponse fetchAndCacheRecommendedUsers(Map<String, Object> request, String userId, SBApiResponse response, int count) throws IOException {
+		int size = (Integer) request.get(Constants.SIZE);
+		int offset = Math.max(0, (Integer) request.get(Constants.OFFSET));
+		if (offset != 0) {
+			offset = (offset * size) + 1;
+		}
+		int cacheLimit = connectionProperties.getUserRecommendationCacheLimit();
+		if (offset >= 0 && offset <= cacheLimit && (offset + size) < cacheLimit) {
+			SBApiResponse cacheResponse = fetchUsersInfoFromCacheIfAvailable(offset, size, cacheLimit, userId, response, count);
+			if (cacheResponse != null) {
+				return cacheResponse;
+			} else {
+				request.put(Constants.SIZE, cacheLimit);
+				List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
+				ArrayNode enrichedFullList = enrichUserInformationForUserRecommendation(recommendationUsersList, response);
+				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + userId, enrichedFullList, networkServerProperties.getRedisUserListReadTimeOut());
+				return fetchUsersInfoFromCacheIfAvailable(offset, size, cacheLimit, userId, response, count);
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Fetches user information from the Redis cache if available.
+	 * It checks if the cached data is not empty and retrieves paginated user data based on offset and size.
+	 * If the cached data is valid, it populates the response with the paged users and returns it.
+	 *
+	 * @param offset     The starting index for pagination.
+	 * @param size       The number of users to fetch.
+	 * @param cacheLimit The maximum number of users that can be cached.
+	 * @param userId     The ID of the user for whom recommendations are being fetched.
+	 * @param response   The SBApiResponse to populate with results.
+	 * @param count      The total count of recommended users.
+	 * @return SBApiResponse containing the paged users or null if not found in cache.
+	 * @throws IOException If there is an error reading from Redis cache.
+	 */
+	private SBApiResponse fetchUsersInfoFromCacheIfAvailable(int offset, int size, int cacheLimit, String userId, SBApiResponse response, Integer count) throws IOException {
+		String cacheKey = Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + userId;
+		String cachedData = redisCacheMgr.getCache(cacheKey);
+		if (!ObjectUtils.isEmpty(cachedData)) {
+			JsonNode cachedUsersNode = mapper.readTree(cachedData);
+			ArrayNode cachedUsers = null;
+			if (cachedUsersNode != null && cachedUsersNode.isArray()) {
+				cachedUsers = (ArrayNode) cachedUsersNode;
+			}
+			if (cachedUsers.size() <= cacheLimit && offset + size <= cachedUsers.size()) {
+				ArrayNode pagedUsers = mapper.createArrayNode();
+				for (int i = offset; i < offset + size; i++) {
+					pagedUsers.add(cachedUsers.get(i));
+				}
+				response.getResult().put(Constants.RESPONSE, pagedUsers);
+				response.getParams().setStatus(Constants.OK);
+				response.setResponseCode(HttpStatus.OK);
+				response.getResult().put(Constants.COUNT, count);
+				return response;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Only the inital 100 records will be cached in Redis for user recommendations.
+	 * Oher records wil be fetched from the database on every call.
+	 * Enriches user information for user recommendations by fetching additional details.
+	 *
+	 * @param userList - The list of users to enrich.
+	 * @param response - The SBApiResponse to populate with enriched user information.
+	 * @return ArrayNode containing enriched user information.
+	 */
+	private ArrayNode enrichUserInformationForUserRecommendation(List<Map<String, String>> userList, SBApiResponse response) {
+		List<String> connectionUserIds = new ArrayList<>();
+		ArrayNode enrichedUserMap;
+		Map<String, Map<String, Object>> userInfoMap = new HashMap<>();
+		extractUserDetails(userList, connectionUserIds, userInfoMap);
+		MultiSearch mSearchRequest = new MultiSearch();
+		enrichedUserMap = iUserUtility.getUserInfoFromRedisV2(mSearchRequest, connectionUserIds, userInfoMap);
+		response.getResult().put(Constants.RESPONSE, enrichedUserMap);
+		response.getParams().setStatus(Constants.OK);
+		response.setResponseCode(HttpStatus.OK);
+		return enrichedUserMap;
 	}
 }
