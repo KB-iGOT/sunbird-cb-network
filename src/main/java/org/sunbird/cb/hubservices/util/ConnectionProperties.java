@@ -123,4 +123,34 @@ public class ConnectionProperties {
 
 	@Value("${user.redis.count.timeout}")
 	private Integer redisUserCountTimeOut;
+
+	@Value("${relationship.between.users.query}")
+	private String relationshipBetweenUsersQuery;
+
+	@Value("${recommendation.users.designation.query}")
+	private String recommendationUsersDesignationQuery;
+
+	@Value("${recommendation.mentors.query}")
+	private String recommendationMentorsQuery;
+
+	@Value("${blocked.users.query}")
+	private String blockedUsersQuery;
+
+	@Value("${recommended.users.count.query}")
+	private String recommendedUsersCountQuery;
+
+	@Value("${recommended.mentors.count.query}")
+	private String recommendedMentorsCountQuery;
+
+	@Value("${connections.status.count.query}")
+	private String connectionsStatusCountQuery;
+
+	@Value("${connections.outgoing.count.query}")
+	private String connectionsOutgoingCountQuery;
+
+	@Value("${connections.incoming.count.query}")
+	private String connectionsIncomingCountQuery;
+
+	@Value("${connections.both.count.query}")
+	private String connectionsBothCountQuery;
 }
