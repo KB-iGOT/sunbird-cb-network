@@ -331,19 +331,7 @@ public class GraphDao implements IGraphDao {
     @Override
     public Map<String, String> getRelationshipBetweenUsers(String fromUser, String toUser) {
         Map<String, String> relationshipProps = new HashMap<>();
-        String query = "MATCH (a:" + label + ")-[r:connect]-(b:" + label + ") " +
-                "WHERE a.userId = $fromUser AND b.userId = $toUser " +
-                "RETURN " +
-                "CASE " +
-                "  WHEN r.status = 'Pending' AND (a)-[r]->(b) THEN 'Pending' " +
-                "  WHEN r.status = 'Pending' AND (a)<-[r]-(b) THEN 'Received' " +
-                "  WHEN r.status = 'Blocked' AND (a)-[r]->(b) THEN 'Blocked Outgoing' "+
-                "  WHEN r.status = 'Blocked' AND (a)<-[r]-(b) THEN 'Blocked Incoming' " +
-                "  ELSE r.status " +
-                "END AS status, " +
-                "r.createdAt AS createdAt, " +
-                "r.updatedAt AS updatedAt " +
-                "LIMIT 1";
+        String query = connectionProperties.getRelationshipBetweenUsersQuery();
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.FROM_USER, fromUser);
         params.put(Constants.TO_USER, toUser);
@@ -436,23 +424,7 @@ public class GraphDao implements IGraphDao {
      * @return A Neo4j Statement object.
      */
     private Statement getStatementForRecommendationFromSameOrg(Map<String, Object> parameters) {
-        String orgQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
-                "WITH u1 " +
-                "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                "WHERE ( " +
-                "    (u2.organisationId = u1.organisationId AND u2.userId <> u1.userId) " +
-                "    OR " +
-                "    (u2.designation = u1.designation AND u2.organisationId <> u1.organisationId AND u2.userId <> u1.userId) " +
-                ") " +
-                "AND NOT (u1)-[:connect {status: 'Pending'}]-(u2) " +
-                "AND NOT (u1)-[:connect {status: 'Approved'}]-(u2) " +
-                "AND NOT (u1)-[:connect {status: 'Blocked'}]-(u2) " +
-                "OPTIONAL MATCH (u1)-[r]-(u2) " +
-                "RETURN u2.userId AS userId, " +
-                "       u2.organisationId AS organisationId, " +
-                "       u2.designation AS designation, " +
-                "       u2.role AS role " +
-                "SKIP $offset LIMIT $size";
+        String orgQuery = connectionProperties.getRecommendationUsersDesignationQuery();
         return new Statement(orgQuery, parameters);
     }
 
@@ -511,19 +483,7 @@ public class GraphDao implements IGraphDao {
      * @return A Neo4j Statement object.
      */
     private Statement getStatementForRecommendedMentorsInSameOrg(Map<String, Object> parameters) {
-        String recommendedMentorsQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
-                "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                "WHERE u2.userId <> u1.userId " +
-                "AND 'MENTOR' IN u2.role " +
-                "AND NOT (u1)-[:connect {status: 'Pending'}]-(u2) " +
-                "AND NOT (u1)-[:connect {status: 'Approved'}]-(u2) " +
-                "AND NOT (u1)-[:connect {status: 'Blocked'}]-(u2) " +
-                "OPTIONAL MATCH (u1)-[r]-(u2) " +
-                "RETURN u2.userId as userId, u2.organisationId as organisationId, " +
-                "u2.designation as designation, u2.role as role, " +
-                "CASE WHEN u2.organisationId = u1.organisationId THEN 0 ELSE 1 END AS orgPriority " +
-                "ORDER BY orgPriority ASC " +
-                "SKIP $offset LIMIT $size";
+        String recommendedMentorsQuery = connectionProperties.getRecommendationMentorsQuery();
         return new Statement(recommendedMentorsQuery, parameters);
     }
 
@@ -580,21 +540,7 @@ public class GraphDao implements IGraphDao {
      * @return A Neo4j Statement object.
      */
     private Statement getStatementForBlockedUsers(Map<String, Object> parameters) {
-        String blockedUsersQuery = "MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]->(blocked:" +
-                connectionProperties.getUserLabelV3() + ") " +
-                "WHERE u.userId = $userId " +
-                "AND r.status IN ['blocked','Blocked'] " +
-                "RETURN " +
-                "u.userId AS userId, " +
-                "u.designation AS designation, " +
-                "u.organisationId AS organisationId, " +
-                "blocked.userId AS blockedUserId, " +
-                "blocked.designation AS blockedUserDesignation, " +
-                "blocked.organisationId AS blockedOrganisationId, " +
-                "r.status AS connectionStatus, " +
-                "r.createdAt AS createdAt, " +
-                "r.updatedAt AS updatedAt " +
-                "SKIP $offset LIMIT $size";
+        String blockedUsersQuery = connectionProperties.getBlockedUsersQuery();
         return new Statement(blockedUsersQuery, parameters);
     }
 
@@ -616,22 +562,13 @@ public class GraphDao implements IGraphDao {
             StringBuilder countQuery;
             if (direction ==Constants.DIRECTION.OUT) {
                 // Count outgoing connections (user → other)
-                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]->(other:" +
-                        connectionProperties.getUserLabelV3() + ") " +
-                        "WHERE u.userId = $userId AND r.status = $status " +
-                        "RETURN COUNT(r) AS count");
+                countQuery = new StringBuilder(connectionProperties.getConnectionsOutgoingCountQuery());
             } else if (direction == Constants.DIRECTION.IN) {
                 // Count incoming connections (other → user)
-                countQuery = new StringBuilder("MATCH (other:" + connectionProperties.getUserLabelV3() + ")-[r:connect]->(u:" +
-                        connectionProperties.getUserLabelV3() + ") " +
-                        "WHERE u.userId = $userId AND r.status = $status " +
-                        "RETURN COUNT(r) AS count");
+                countQuery = new StringBuilder(connectionProperties.getConnectionsIncomingCountQuery());
             } else {
                 // Count connections in both directions
-                countQuery = new StringBuilder("MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]-(other:" +
-                        connectionProperties.getUserLabelV3() + ") " +
-                        "WHERE u.userId = $userId AND r.status = $status " +
-                        "RETURN COUNT(r) AS count");
+                countQuery = new StringBuilder(connectionProperties.getConnectionsBothCountQuery());
             }
             Statement statement = new Statement(countQuery.toString(), parameters);
             StatementResult result = transaction.run(statement);
@@ -658,21 +595,7 @@ public class GraphDao implements IGraphDao {
         try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
-            String countQuery =
-                    "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
-                            "WITH u1 " +
-                            "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                            "WHERE " +
-                            "    u2.userId <> u1.userId AND ( " +
-                            "        (u2.organisationId = u1.organisationId) OR " +
-                            "        (u2.designation = u1.designation AND u2.organisationId <> u1.organisationId) " +
-                            "    ) " +
-                            "WITH u1, u2 " +
-                            "OPTIONAL MATCH (u1)-[c:connect]-(u2) " +
-                            "WHERE c.status IN ['Pending', 'Approved', 'Blocked'] " +
-                            "WITH u2, c " +
-                            "WHERE c IS NULL " +
-                            "RETURN count(u2) AS totalCount";
+            String countQuery =connectionProperties.getRecommendedUsersCountQuery();
             Statement statement = new Statement(countQuery, parameters);
             StatementResult result = transaction.run(statement);
             Record recommendUsersRecord = result.single();
@@ -696,15 +619,7 @@ public class GraphDao implements IGraphDao {
         try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
-            String countQuery = "MATCH (u1:" + connectionProperties.getUserLabelV3() + " {userId: $userId}) " +
-                    "MATCH (u2:" + connectionProperties.getUserLabelV3() + ") " +
-                    "WHERE u2.userId <> u1.userId " +
-                    "AND 'MENTOR' IN u2.role " +
-                    "AND NOT (u1)-[:connect {status: 'Pending'}]-(u2) " +
-                    "AND NOT (u1)-[:connect {status: 'Approved'}]-(u2) " +
-                    "AND NOT (u1)-[:connect {status: 'Blocked'}]-(u2) " +
-                    "OPTIONAL MATCH (u1)-[r]-(u2) " +
-                    "RETURN count(u2) AS totalCount";
+            String countQuery =connectionProperties.getRecommendedMentorsCountQuery();
             Statement statement = new Statement(countQuery, parameters);
             StatementResult result = transaction.run(statement);
             Record mentorRecommenedRecord = result.single();
@@ -728,16 +643,7 @@ public class GraphDao implements IGraphDao {
     @Override
     public List<Map<String, Object>> getTotalCountForUsersBasedOnStatus(String userId, List<String> statusValue, String facetsAttribute) {
         List<Map<String, Object>> resultList = new ArrayList<>();
-        String query = "MATCH (u:" + connectionProperties.getUserLabelV3() + ")-[r:connect]-(other:" + connectionProperties.getUserLabelV3() + ") " +
-                "WHERE u.userId = $userId AND r.status IN $statusValue " +
-                "RETURN u.userId AS userId, " +
-                "CASE " +
-                "  WHEN r.status = 'Pending' AND (u)-[r]->(other) THEN 'Requested' " +
-                "  WHEN r.status = 'Pending' AND (u)<-[r]-(other) THEN 'Received' " +
-                "  WHEN r.status = 'Blocked' AND (u)-[r]->(other) THEN 'Blocked Outgoing' " +
-                "  ELSE r.status " +
-                "END AS status, count(*) AS count " +
-                "ORDER BY u.userId, status";
+        String query = connectionProperties.getConnectionsStatusCountQuery();
         Map<String, Object> params = new HashMap<>();
         params.put(Constants.USER_ID, userId);
         params.put(Constants.STATUS_VALUE, statusValue);
