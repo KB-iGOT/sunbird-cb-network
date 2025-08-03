@@ -308,9 +308,8 @@ public class ConnectionService implements IConnectionService {
 
 			String connectionRequestedInformation;
 			String connectionRecievedInformation;
-			List<Node> nodes  = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
+			List<Node> nodes  = new ArrayList<>();
 			Collection<Node> cachedNodes = new ArrayList<>();
-			List<String> userIds = nodes.stream().map(Node::getUserId).collect(Collectors.toList());
 			List<String> cachedUserIds = new ArrayList<>();
 			if (direction == Constants.DIRECTION.OUT) {
 				connectionRequestedInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId);
