@@ -152,4 +152,13 @@ public class RedisCacheMgr {
         }
         return result;
     }
+
+    public boolean hasKey(String key) {
+        try (Jedis jedis = jedisPool.getResource()) {
+            return jedis.exists(Constants.REDIS_COMMON_KEY + key);
+        } catch (Exception e) {
+            logger.error("Failed to check existence for key {}: {}", key, e.getMessage());
+            return false;
+        }
+    }
 }

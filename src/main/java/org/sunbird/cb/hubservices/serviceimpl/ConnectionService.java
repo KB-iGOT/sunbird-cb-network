@@ -310,6 +310,7 @@ public class ConnectionService implements IConnectionService {
 			String connectionRecievedInformation;
 			List<Node> nodes  = new ArrayList<>();
 			Collection<Node> cachedNodes = new ArrayList<>();
+			boolean isCacheKeyExists = false;
 			List<String> cachedUserIds = new ArrayList<>();
 			if (direction == Constants.DIRECTION.OUT) {
 				connectionRequestedInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId);
@@ -317,6 +318,9 @@ public class ConnectionService implements IConnectionService {
 					cachedNodes = objectMapper.readValue(connectionRequestedInformation,
 							new TypeReference<Collection<Node>>() {
 							});
+					if (CollectionUtils.isEmpty(cachedNodes)) {
+						isCacheKeyExists = redisCacheMgr.hasKey(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId);
+					}
 				}
 			} else if (direction == Constants.DIRECTION.IN) {
 				connectionRecievedInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId);
@@ -324,12 +328,17 @@ public class ConnectionService implements IConnectionService {
 					cachedNodes = objectMapper.readValue(connectionRecievedInformation,
 							new TypeReference<Collection<Node>>() {
 							});
+					if (CollectionUtils.isEmpty(cachedNodes)) {
+						isCacheKeyExists = redisCacheMgr.hasKey(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId);
+					}
 				}
 			}
 			if(!CollectionUtils.isEmpty(cachedNodes)) {
 				for (Node node : cachedNodes) {
 					cachedUserIds.add(node.getUserId());
 				}
+			} else if (isCacheKeyExists) {
+				logger.info("Cached nodes found for user: " + userId + " in direction: " + direction + ", but no data.");
 			} else {
 				logger.info("No cached nodes found for user: " + userId + " in direction: " + direction);
 				nodes  = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
