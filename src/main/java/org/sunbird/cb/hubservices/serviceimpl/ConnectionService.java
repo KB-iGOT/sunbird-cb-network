@@ -331,26 +331,23 @@ public class ConnectionService implements IConnectionService {
 				for (Node node : cachedNodes) {
 					cachedUserIds.add(node.getUserId());
 				}
+			} else {
+				logger.info("No cached nodes found for user: " + userId + " in direction: " + direction);
+				nodes  = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
+				cachedNodes = enrichUserInfo(nodes);
+				if (direction == Constants.DIRECTION.OUT) {
+					redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId, cachedNodes, connectionProperties.getRedisUserConnectionRequestedTimeOut());
+				}
+				if (direction == Constants.DIRECTION.IN) {
+					redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId, cachedNodes, connectionProperties.getRedisUserConnectionRecievedTimeOut());
+				}
 			}
 			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, direction);
 			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
-			if (CollectionUtils.isNotEmpty(nodes)&& !userIds.equals(cachedUserIds)) {
-				Collection<Node> enrichedUserInfoNodes = enrichUserInfo(nodes);
-				if (direction == Constants.DIRECTION.OUT) {
-					redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId, enrichedUserInfoNodes, connectionProperties.getRedisUserConnectionRequestedTimeOut());
-				}
-				if (direction == Constants.DIRECTION.IN) {
-					redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId, enrichedUserInfoNodes, connectionProperties.getRedisUserConnectionRecievedTimeOut());
-				}
-				response.put(Constants.ResponseStatus.DATA, enrichedUserInfoNodes);
-				response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
-				response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
-				return response;
-			}
+			
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 			response.put(Constants.ResponseStatus.DATA, cachedNodes);
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
-
 		} catch (Exception e) {
 			logger.error("ConnectionService::findConnectionsRequestedV2 ", e);
 			throw new ApplicationException(Constants.Message.FAILED_CONNECTION + e.getMessage());
