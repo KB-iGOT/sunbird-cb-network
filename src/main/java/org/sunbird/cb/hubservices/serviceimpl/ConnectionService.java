@@ -264,7 +264,7 @@ public class ConnectionService implements IConnectionService {
 			List<Map<String, Object>> cachedNodes;
 			Integer cachedCount=0;
 			if (StringUtils.isNotEmpty(cachedNodesJson)) {
-				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<Collection<Node>>() {});
+				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<List<Map<String, Object>>>() {});
 			} else {
 				Map<String, String> relationProperties = new HashMap<>();
 				relationProperties.put(Constants.Graph.STATUS.getValue(), status);
@@ -280,12 +280,12 @@ public class ConnectionService implements IConnectionService {
 						})
 						.collect(Collectors.toList());
 				cachedNodes = profileService.enrichNeo4JDataForRecommendataion(userList);
-				Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.APPROVED, null);
-				cachedCount = userCount.get(Constants.COUNT);
-				if (cachedCount == null) {
-					cachedCount = 0;
-				}
 				redisCacheMgr.putCache(nodeCacheKey, objectMapper.writeValueAsString(cachedNodes), cacheTtl);
+			}
+			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, null);
+			cachedCount = userCount.get(Constants.COUNT);
+			if (cachedCount == null) {
+				cachedCount = 0;
 			}
 			response.put(Constants.COUNT, cachedCount);
 			response.put(Constants.ResponseStatus.PAGENO, offset);
@@ -328,7 +328,7 @@ public class ConnectionService implements IConnectionService {
 			//If both are cached, use cache
 			if (StringUtils.isNotEmpty(cachedNodesJson)) {
 				logger.info("Cache hit for userId: {} (direction: {}). Returning cached data.", userId, direction);
-				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<Collection<Node>>() {
+				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<List<Map<String, Object>>>() {
 				});
 			} else {
 				//If cache miss, fetch from DB and cache the results
@@ -347,14 +347,14 @@ public class ConnectionService implements IConnectionService {
 						})
 						.collect(Collectors.toList());
 				cachedNodes = profileService.enrichNeo4JDataForRecommendataion(userList);
-				Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, direction);
-				cachedCount = userCount.get(Constants.COUNT);
-				if (cachedCount == null) {
-					cachedCount = 0;
-				}
 				// Cache the results (including empty/zero)
 				redisCacheMgr.putCache(nodeCacheKey, cachedNodes, cacheTtl);
 				logger.debug("Caching node list and count for userId: {} (direction: {}) with TTL: {}", userId, direction, cacheTtl);
+			}
+			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, direction);
+			cachedCount = userCount.get(Constants.COUNT);
+			if (cachedCount == null) {
+				cachedCount = 0;
 			}
 			// Build and return the response
 			response.put(Constants.COUNT, cachedCount);
