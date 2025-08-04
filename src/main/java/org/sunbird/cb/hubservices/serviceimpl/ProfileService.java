@@ -748,13 +748,16 @@ public class ProfileService implements IProfileService {
 		return enrichedUserMap;
 	}
 
-	private List<Map<String, Object>> enrichNeo4JDataForRecommendataion(List<Map<String, String>> userList) {
+	public List<Map<String, Object>> enrichNeo4JDataForRecommendataion(List<Map<String, String>> userList) {
 		if (CollectionUtils.isNotEmpty(userList)) {
 			List<Map<String, Object>> enrichedData = new ArrayList<>();
 			for (Map<String, String> user : userList) {
 				Map<String, Object> enrichedUser = new HashMap<>();
 				enrichedUser.put(Constants.USER_ID, user.get(Constants.USER_ID));
 				iUserUtility.getUserProfileFromRedis(enrichedUser);
+				enrichedUser.put(Constants.CREATED_AT, user.get(Constants.CREATED_AT));
+				enrichedUser.put(Constants.UPDATED_AT, user.get(Constants.UPDATED_AT));
+				enrichedUser.put(Constants.STATUS, user.get(Constants.STATUS));
 				enrichedData.add(enrichedUser);
 			}
 			return enrichedData;

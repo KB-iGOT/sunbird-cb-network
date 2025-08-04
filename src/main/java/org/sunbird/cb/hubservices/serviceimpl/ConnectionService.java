@@ -24,6 +24,7 @@ import org.sunbird.cb.hubservices.exception.ValidationException;
 import org.sunbird.cb.hubservices.model.*;
 import org.sunbird.cb.hubservices.service.IConnectionService;
 import org.sunbird.cb.hubservices.service.INodeService;
+import org.sunbird.cb.hubservices.service.IProfileService;
 import org.sunbird.cb.hubservices.util.ConnectionProperties;
 import org.sunbird.cb.hubservices.util.Constants;
 import org.sunbird.cb.hubservices.util.RequestHandlerServiceImpl;
@@ -59,6 +60,9 @@ public class ConnectionService implements IConnectionService {
 
 	@Autowired
 	RequestHandlerServiceImpl requestHandlerService;
+
+	@Autowired
+	IProfileService profileService;
 
 	/**
 	 * This method is used to block a user.
@@ -310,32 +314,38 @@ public class ConnectionService implements IConnectionService {
 			int cacheTtl;
 			if (direction == Constants.DIRECTION.OUT) {
 				nodeCacheKey = Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId;
-				countCacheKey = nodeCacheKey + Constants.UNDER_SCORE + Constants.COUNT;
 				cacheTtl = connectionProperties.getRedisUserConnectionRequestedTimeOut();
 			} else {
 				nodeCacheKey = Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId;
-				countCacheKey = nodeCacheKey + Constants.UNDER_SCORE + Constants.COUNT;
 				cacheTtl = connectionProperties.getRedisUserConnectionRecievedTimeOut();
 			}
-			logger.debug("Cache keys - nodeCacheKey: {}, countCacheKey: {}", nodeCacheKey, countCacheKey);
+			logger.debug("Cache keys - nodeCacheKey: {}", nodeCacheKey);
 			//Attempt to fetch node list and count from cache
 			String cachedNodesJson = redisCacheMgr.getCache(nodeCacheKey);
-			String cachedCountJson = redisCacheMgr.getCache(countCacheKey);
-			Collection<Node> cachedNodes;
-			Integer cachedCount;
+			List<Map<String, Object>> cachedNodes;
+			Integer cachedCount = 0;
 			//If both are cached, use cache
-			if (StringUtils.isNotEmpty(cachedNodesJson) && StringUtils.isNotEmpty(cachedCountJson)) {
+			if (StringUtils.isNotEmpty(cachedNodesJson)) {
 				logger.info("Cache hit for userId: {} (direction: {}). Returning cached data.", userId, direction);
 				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<Collection<Node>>() {
 				});
-				cachedCount = objectMapper.readValue(cachedCountJson, Integer.class);
 			} else {
 				//If cache miss, fetch from DB and cache the results
 				logger.info("Cache miss for userId: {} (direction: {}). Fetching from DB.", userId, direction);
 				Map<String, String> relationProperties = new HashMap<>();
 				relationProperties.put(Constants.Graph.STATUS.getValue(), Constants.Status.PENDING);
 				List<Node> nodes = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
-				cachedNodes = enrichUserInfo(nodes);
+				List<Map<String, String>> userList = nodes.stream()
+						.map(node -> {
+							Map<String, String> map = new HashMap<>();
+							map.put(Constants.USER_ID, node.getUserId());
+							map.put(Constants.CREATED_AT, node.getCreatedAt());
+							map.put(Constants.UPDATED_AT, node.getUpdatedAt());
+							map.put(Constants.STATUS, node.getStatus());
+							return map;
+						})
+						.collect(Collectors.toList());
+				cachedNodes = profileService.enrichNeo4JDataForRecommendataion(userList);
 				Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, direction);
 				cachedCount = userCount.get(Constants.COUNT);
 				if (cachedCount == null) {
@@ -343,7 +353,6 @@ public class ConnectionService implements IConnectionService {
 				}
 				// Cache the results (including empty/zero)
 				redisCacheMgr.putCache(nodeCacheKey, cachedNodes, cacheTtl);
-				redisCacheMgr.putCache(countCacheKey, cachedCount, cacheTtl);
 				logger.debug("Caching node list and count for userId: {} (direction: {}) with TTL: {}", userId, direction, cacheTtl);
 			}
 			// Build and return the response

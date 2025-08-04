@@ -32,6 +32,7 @@ import org.sunbird.cb.hubservices.util.PrettyPrintingMap;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.MalformedParameterizedTypeException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -362,9 +363,26 @@ public class UserUtilityService implements IUserUtility {
             } else {
                 fullProfile = fetchFromDatabase(userId, basicProfileFieldsList);
             }
-
+            Map<String,Object> enrichedProfileMap = new HashMap<>();
+            enrichedProfileMap.put(Constants.DEPARTMENT_NAME,fullProfile.get(Constants.CHANNEL));
+            Map<String,Object> profileDetailsMap = (Map<String, Object>) fullProfile.get(Constants.PROFILE_DETAILS);
+            if(MapUtils.isNotEmpty(profileDetailsMap)){
+                List<Map<String,Object>> professionalDetailsMap = (List<Map<String, Object>>) profileDetailsMap.get(Constants.PROFESSIONAL_DETAILS);
+                enrichedProfileMap.put(Constants.EMPLOYMENT_DETAILS,profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS));
+                if(!CollectionUtils.isEmpty(professionalDetailsMap)){
+                    enrichedProfileMap.put(Constants.DESIGNATION,professionalDetailsMap.get(0).get(Constants.DESIGNATION));
+                    enrichedProfileMap.put(Constants.PROFESSIONAL_DETAILS,professionalDetailsMap);
+                }
+            }
+            enrichedProfileMap.put(Constants.ORGANISATION_ID,fullProfile.get(Constants.ROOT_ORG_ID));
+            enrichedProfileMap.put(Constants.PROFILE_IMAGE_URL,fullProfile.get(Constants.PROFILE_IMAGE_URL));
+            enrichedProfileMap.put(Constants.PROFILE_BANNER_URL,fullProfile.get(Constants.PROFILE_BANNER_URL));
+            enrichedProfileMap.put(Constants.ROLES,fullProfile.get(Constants.ROLES));
+            enrichedProfileMap.put(Constants.ID,fullProfile.get(Constants.ID));
+            enrichedProfileMap.put(Constants.USER_ID,fullProfile.get(Constants.ID));
+            enrichedProfileMap.put(Constants.FULL_NAME,fullProfile.get(Constants.FULL_NAME));
             userProfile.clear();
-            userProfile.putAll(fullProfile);
+            userProfile.putAll(enrichedProfileMap);
         } catch (Exception e) {
             logger.error("Error fetching basic profile for userId: {}", userId, e);
         }
