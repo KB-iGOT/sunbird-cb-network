@@ -323,12 +323,11 @@ public class ConnectionService implements IConnectionService {
 			String cachedCountJson = redisCacheMgr.getCache(countCacheKey);
 			Collection<Node> cachedNodes;
 			Integer cachedCount;
-			boolean nodesCached = StringUtils.isNotEmpty(cachedNodesJson);
-			boolean countCached = StringUtils.isNotEmpty(cachedCountJson);
 			//If both are cached, use cache
-			if (nodesCached && countCached) {
+			if ( StringUtils.isNotEmpty(cachedNodesJson) &&  StringUtils.isNotEmpty(cachedCountJson)) {
 				logger.info("Cache hit for userId: {} (direction: {}). Returning cached data.", userId, direction);
-				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<Collection<Node>>() {
+				String nodesJson = objectMapper.readValue(cachedNodesJson, String.class);
+				cachedNodes = objectMapper.readValue(nodesJson, new TypeReference<Collection<Node>>() {
 				});
 				cachedCount = objectMapper.readValue(cachedCountJson, Integer.class);
 			} else {
