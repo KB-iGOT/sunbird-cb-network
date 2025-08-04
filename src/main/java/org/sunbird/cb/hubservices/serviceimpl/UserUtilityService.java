@@ -346,21 +346,25 @@ public class UserUtilityService implements IUserUtility {
         try {
             String cachedJson = redisCacheMgr.getCache(cacheKey);
             List<String> basicProfileFieldsList = connectionProperties.getBasicProfileFields();
+            Map<String, Object> fullProfile = new HashMap<>();
             if (StringUtils.isNotEmpty(cachedJson)) {
-                userProfile = mapper.readValue(cachedJson, new TypeReference<Map<String, Object>>() {
+                fullProfile = mapper.readValue(cachedJson, new TypeReference<Map<String, Object>>() {
                 });
-                List<String> cachedKeyList = new ArrayList<>(userProfile.keySet());
+                List<String> cachedKeyList = new ArrayList<>(fullProfile.keySet());
                 List<String> differenceList = basicProfileFieldsList.stream()
                         .filter(key -> !cachedKeyList.contains(key)).collect(Collectors.toList());
                 if (!differenceList.isEmpty()) {
                     Map<String, Object> userDetails = fetchFromDatabase(userId, differenceList);
                     if (MapUtils.isNotEmpty(userDetails)) {
-                        userProfile.putAll(userDetails);
+                        fullProfile.putAll(userDetails);
                     }
                 }
             } else {
-                userProfile = fetchFromDatabase(userId, basicProfileFieldsList);
+                fullProfile = fetchFromDatabase(userId, basicProfileFieldsList);
             }
+
+            userProfile.clear();
+            userProfile.putAll(fullProfile);
         } catch (Exception e) {
             logger.error("Error fetching basic profile for userId: {}", userId, e);
         }
