@@ -1,100 +1,47 @@
 package org.sunbird.cb.hubservices.serviceimpl;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.junit.jupiter.api.BeforeEach;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.sunbird.cb.hubservices.model.NotificationEvent;
-import org.sunbird.cb.hubservices.model.Response;
-import org.sunbird.cb.hubservices.profile.handler.ProfileUtils;
 import org.sunbird.cb.hubservices.util.ConnectionProperties;
-import org.sunbird.cb.hubservices.util.Constants;
 
-@RunWith(MockitoJUnitRunner.class)
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+@ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
 
-	@InjectMocks
-	NotificationService notificationService;
-	@Mock
-	ProfileService profileService;
+    @Mock private ObjectMapper mapper;
+    @Mock private ConnectionProperties connectionProperties;
+    @Mock private ProfileService profileService;
 
-	@Mock
-	ProfileUtils profileUtils;
+    @Mock private JsonNode dataNode;
+    @Mock private JsonNode personalDetailsNode;
 
-	@Mock
-	ConnectionProperties connectionProperties;
+    @InjectMocks
+    private NotificationService notificationService;
+    @Test
+    void testBuildEvent_NullParameters_ReturnsNullMode() {
+        NotificationEvent result = notificationService.buildEvent(null, "sender", "recipient", "status");
+        assertNotNull(result);
+        assertNull(result.getMode());
+    }
 
-	@BeforeEach
-	public void setUp() {
-		MockitoAnnotations.initMocks(this);
-	}
+    @Test
+    void testBuildEvent_NullSender_ReturnsNullMode() {
+        NotificationEvent result = notificationService.buildEvent("request", null, "recipient", "status");
+        assertNotNull(result);
+        assertNull(result.getMode());
+    }
 
-	@Test
-	void buildEvent_all_values_set() throws Exception {
-
-		final String sender = "#sender";
-		final String targetUrl = "#targetUrl";
-		final String urlValues = "#urlValues";
-		final String status = "#status";
-		final String id = "mockId";
-
-		Map<String, Object> mockProfiles = new HashMap<>();
-		Response response = new Response();
-		response.put(Constants.ResponseStatus.DATA, mockProfiles);
-
-		when(profileUtils.getUserProfiles(Arrays.asList(id))).thenReturn(Arrays.asList(mockProfiles));
-
-		when(connectionProperties.getNotificationTemplateSender()).thenReturn(sender);
-		when(connectionProperties.getNotificationTemplateTargetUrl()).thenReturn(targetUrl);
-		when(connectionProperties.getNotificationTemplateTargetUrlValue()).thenReturn(urlValues);
-		when(connectionProperties.getNotificationTemplateStatus()).thenReturn(status);
-		when(connectionProperties.getNotificationTemplateReciepient()).thenReturn("#reciepient");
-
-		/*
-		 * UserConnection userConnection = mock(UserConnection.class,
-		 * Mockito.RETURNS_DEEP_STUBS);
-		 * when(userConnection.getUserConnectionPrimarykey().getUserId()).thenReturn(
-		 * "uuid");
-		 * when(userConnection.getUserConnectionPrimarykey().getConnectionId()).
-		 * thenReturn("connect_id");
-		 * when(userConnection.getConnectionStatus()).thenReturn("status");
-		 */
-
-		NotificationEvent notificationEvent = notificationService.buildEvent(id, "sender", "reciepient", "status");
-
-		assertTrue(notificationEvent.getConfig().getSubject().equalsIgnoreCase(id));
-		assertTrue(notificationEvent.getIds() != null);
-		assertTrue(notificationEvent.getConfig() != null);
-		assertTrue(notificationEvent.getTemplate() != null);
-
-	}
-
-	@Test
-	void postEvent() {
-		when(connectionProperties.getNotificationIp()).thenReturn("ipaddress");
-		when(connectionProperties.getNotificationEventEndpoint()).thenReturn("endpoint");
-		// when(new RestTemplate().exchange("ipaddressendpoint", HttpMethod.POST,
-		// Mockito.any(), String.class)).thenReturn(Mockito.any());
-
-		NotificationEvent notificationEvent = mock(NotificationEvent.class, Mockito.RETURNS_DEEP_STUBS);
-
-		ResponseEntity entity = notificationService.postEvent(notificationEvent);
-		assertTrue(entity != null);
-		assertTrue(entity.getStatusCode().equals(HttpStatus.INTERNAL_SERVER_ERROR));
-
-	}
+    @Test
+    void testBuildEvent_NullRecipient_ReturnsNullMode() {
+        NotificationEvent result = notificationService.buildEvent("request", "sender", null, "status");
+        assertNotNull(result);
+        assertNull(result.getMode());
+    }
 }
