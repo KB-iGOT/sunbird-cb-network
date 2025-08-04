@@ -347,7 +347,7 @@ public class UserUtilityService implements IUserUtility {
         try {
             String cachedJson = redisCacheMgr.getCache(cacheKey);
             List<String> basicProfileFieldsList = connectionProperties.getBasicProfileFields();
-            Map<String, Object> fullProfile = new HashMap<>();
+            Map<String, Object> fullProfile;
             if (StringUtils.isNotEmpty(cachedJson)) {
                 fullProfile = mapper.readValue(cachedJson, new TypeReference<Map<String, Object>>() {
                 });
@@ -372,6 +372,13 @@ public class UserUtilityService implements IUserUtility {
                 if(!CollectionUtils.isEmpty(professionalDetailsMap)){
                     enrichedProfileMap.put(Constants.DESIGNATION,professionalDetailsMap.get(0).get(Constants.DESIGNATION));
                     enrichedProfileMap.put(Constants.PROFESSIONAL_DETAILS,professionalDetailsMap);
+                }
+                Map<String,Object> personalDetailsMap = (Map<String, Object>) profileDetailsMap.get(Constants.PERSONAL_DETAILS);
+                if(MapUtils.isNotEmpty(personalDetailsMap)){
+                    Map<String,Object> personalDetails = new HashMap<>();
+                    personalDetails.put(Constants.FIRST_NAME,personalDetailsMap.get(Constants.FIRST_NAME));
+                    personalDetails.put(Constants.PHONE_VERIFIED,personalDetailsMap.get(Constants.PHONE_VERIFIED));
+                    enrichedProfileMap.put(Constants.PERSONAL_DETAILS, personalDetails);
                 }
             }
             enrichedProfileMap.put(Constants.ORGANISATION_ID,fullProfile.get(Constants.ROOT_ORG_ID));
