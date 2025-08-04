@@ -7,6 +7,9 @@ import lombok.Setter;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.collections4.CollectionUtils;
+import org.sunbird.cb.hubservices.util.Constants;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,7 +28,7 @@ public class Node {
 	private String profileBannerUrl;
 	private String designation;
 	private String organisationId;
-	private List<String> roles;
+	private Boolean isMentor;
 
 	public Node(String userId) {
 		this.userId = userId;
@@ -41,8 +44,20 @@ public class Node {
 	public Node(String designation, String userId, List<String> role, String rootorgid, String updatedAt) {
 		this.userId= userId;
 		this.designation = designation;
-		this.roles = role;
+		if (CollectionUtils.isNotEmpty(role)) {
+			if (role.contains(Constants.MENTOR)) {
+				isMentor = true;
+			}
+		}
 		this.organisationId = rootorgid;
 		this.updatedAt = updatedAt;
+	}
+
+	public void setIsMentor(List<String> role) {
+		if (CollectionUtils.isNotEmpty(role)) {
+			if (role.contains(Constants.MENTOR)) {
+				isMentor = true;
+			}
+		}
 	}
 }

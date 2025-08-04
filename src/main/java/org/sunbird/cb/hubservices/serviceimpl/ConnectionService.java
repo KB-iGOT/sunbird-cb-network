@@ -106,12 +106,12 @@ public class ConnectionService implements IConnectionService {
 			if (userId.equals(connectionRequest.getUserIdFrom())) {
 				from.setUserId(userId);
 				from.setDesignation(designation);
-				from.setRoles(roleList);
+				from.setIsMentor(roleList);
 				from.setOrganisationId((String) responseMap.get("rootOrgId"));
 			} else {
 				to.setUserId(userId);
 				to.setDesignation(designation);
-				to.setRoles(roleList);
+				to.setIsMentor(roleList);
 				to.setOrganisationId((String) responseMap.get("rootOrgId"));
 			}
 		}

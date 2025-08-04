@@ -371,12 +371,10 @@ public class GraphDao implements IGraphDao {
                     recommendationData.put(Constants.USER_ID, userRecommendationRecord.get(Constants.USER_ID).asString());
                     recommendationData.put(Constants.ORGANISATION_ID, userRecommendationRecord.get(Constants.ORGANISATION_ID).asString());
                     recommendationData.put(Constants.DESIGNATION, userRecommendationRecord.get(Constants.DESIGNATION).asString());
-                    if (!userRecommendationRecord.get(Constants.ROLE).isNull()) {
-                        List<String> rolesList = userRecommendationRecord.get(Constants.ROLE).asList(Value::asString);
-                        String rolesString = String.join(",", rolesList);
-                        recommendationData.put(Constants.ROLE, rolesString);
-                    } else {
-                        recommendationData.put(Constants.ROLE, "");
+                    boolean isMentor = userRecommendationRecord.get(Constants.IS_MENTOR).isNull() ?
+                            false : userRecommendationRecord.get(Constants.IS_MENTOR).asBoolean();
+                    if (isMentor) {
+                        recommendationData.put(Constants.ROLE, Constants.MENTOR);
                     }
                     recommendationList.add(recommendationData);
                 }

@@ -541,10 +541,6 @@ public class ProfileService implements IProfileService {
 			List<String> role = getUserRoles(userId, (String) userProfile.get(Constants.ROOT_ORG_ID));
 			if (CollectionUtils.isEmpty(role)) {
 				logger.error("ProfileService : onboardNetworkHubUser : User roles not found for userId: {}", userId);
-				response.getParams().setStatus(HttpStatus.NOT_FOUND.toString());
-				response.getParams().setErrmsg("User roles not found");
-				response.setResponseCode(HttpStatus.NOT_FOUND);
-				return response;
 			}
 
 			Node node = new Node(designation, userId, role, (String) userProfile.get(Constants.ROOT_ORG_ID), new Date().toString());
