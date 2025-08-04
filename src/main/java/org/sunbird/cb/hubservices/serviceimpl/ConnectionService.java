@@ -280,7 +280,7 @@ public class ConnectionService implements IConnectionService {
 						})
 						.collect(Collectors.toList());
 				cachedNodes = profileService.enrichNeo4JDataForRecommendataion(userList);
-				redisCacheMgr.putCache(nodeCacheKey, objectMapper.writeValueAsString(cachedNodes), cacheTtl);
+				redisCacheMgr.putCache(nodeCacheKey, cachedNodes, cacheTtl);
 			}
 			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, null);
 			cachedCount = userCount.get(Constants.COUNT);
