@@ -171,6 +171,7 @@ public class Constants {
 	public static final String MENTOR = "MENTOR";
 	public static final String IS_MENTOR = "isMentor";
 	public static final String CONNECTIONS_COUNT = "connectionsCount";
+	public static final String DEPARTMENT_NAME = "departmentName";
 
 	public enum Graph {
 		ID("userId"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
