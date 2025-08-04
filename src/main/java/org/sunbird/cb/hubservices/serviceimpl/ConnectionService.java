@@ -24,6 +24,7 @@ import org.sunbird.cb.hubservices.exception.ValidationException;
 import org.sunbird.cb.hubservices.model.*;
 import org.sunbird.cb.hubservices.service.IConnectionService;
 import org.sunbird.cb.hubservices.service.INodeService;
+import org.sunbird.cb.hubservices.service.IProfileService;
 import org.sunbird.cb.hubservices.util.ConnectionProperties;
 import org.sunbird.cb.hubservices.util.Constants;
 import org.sunbird.cb.hubservices.util.RequestHandlerServiceImpl;
@@ -59,6 +60,9 @@ public class ConnectionService implements IConnectionService {
 
 	@Autowired
 	RequestHandlerServiceImpl requestHandlerService;
+
+	@Autowired
+	IProfileService profileService;
 
 	/**
 	 * This method is used to block a user.
@@ -102,12 +106,12 @@ public class ConnectionService implements IConnectionService {
 			if (userId.equals(connectionRequest.getUserIdFrom())) {
 				from.setUserId(userId);
 				from.setDesignation(designation);
-				from.setRoles(roleList);
+				from.setIsMentor(roleList);
 				from.setOrganisationId((String) responseMap.get("rootOrgId"));
 			} else {
 				to.setUserId(userId);
 				to.setDesignation(designation);
-				to.setRoles(roleList);
+				to.setIsMentor(roleList);
 				to.setOrganisationId((String) responseMap.get("rootOrgId"));
 			}
 		}
@@ -254,39 +258,40 @@ public class ConnectionService implements IConnectionService {
 			if (userId == null || userId.isEmpty()) {
 				throw new BadRequestException(Constants.Message.USER_ID_INVALID);
 			}
-			Map<String, String> relationProperties = new HashMap<>();
-			relationProperties.put(Constants.Graph.STATUS.getValue(), status);
-			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit, null);
-			Collection<Node> cachedNodes = new ArrayList<>();
-			List<String> userIds = nodes.stream().map(Node::getUserId).collect(Collectors.toList());
-			List<String> cachedUserIds = new ArrayList<>();
-			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.APPROVED, null);
-			String connectionEstablishedInformation = redisCacheMgr.getCache(
-					Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId);
-			if (!StringUtils.isEmpty(connectionEstablishedInformation)) {
-				cachedNodes = objectMapper.readValue(connectionEstablishedInformation,
-						new TypeReference<Collection<Node>>() {
-						});
+			String nodeCacheKey = Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId;
+			int cacheTtl = connectionProperties.getRedisUserConnectionEstablishedTimeOut();
+			String cachedNodesJson = redisCacheMgr.getCache(nodeCacheKey);
+			List<Map<String, Object>> cachedNodes;
+			Integer cachedCount=0;
+			if (StringUtils.isNotEmpty(cachedNodesJson)) {
+				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<List<Map<String, Object>>>() {});
+			} else {
+				Map<String, String> relationProperties = new HashMap<>();
+				relationProperties.put(Constants.Graph.STATUS.getValue(), status);
+				List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit, null);
+				List<Map<String, String>> userList = nodes.stream()
+						.map(node -> {
+							Map<String, String> map = new HashMap<>();
+							map.put(Constants.USER_ID, node.getUserId());
+							map.put(Constants.CREATED_AT, node.getCreatedAt());
+							map.put(Constants.UPDATED_AT, node.getUpdatedAt());
+							map.put(Constants.STATUS, node.getStatus());
+							return map;
+						})
+						.collect(Collectors.toList());
+				cachedNodes = profileService.enrichNeo4JDataForRecommendataion(userList);
+				redisCacheMgr.putCache(nodeCacheKey, cachedNodes, cacheTtl);
 			}
-			if(!CollectionUtils.isEmpty(cachedNodes)) {
-				for (Node node : cachedNodes) {
-					cachedUserIds.add(node.getUserId());
-				}
+			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, null);
+			cachedCount = userCount.get(Constants.COUNT);
+			if (cachedCount == null) {
+				cachedCount = 0;
 			}
-			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
+			response.put(Constants.COUNT, cachedCount);
 			response.put(Constants.ResponseStatus.PAGENO, offset);
-				if (CollectionUtils.isNotEmpty(nodes)&& !userIds.equals(cachedUserIds)) {
-				Collection<Node> enrichedUserInfoNodes = enrichUserInfo(nodes);
-				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId, enrichedUserInfoNodes, connectionProperties.getRedisUserConnectionEstablishedTimeOut());
-				response.put(Constants.ResponseStatus.DATA, enrichedUserInfoNodes);
-				response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
-				response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
-				return response;
-			}
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 			response.put(Constants.ResponseStatus.DATA, cachedNodes);
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
-
 		} catch (Exception e) {
 			logger.error("ConnectionService::findAllConnectionsIdsByStatusV2 " , e);
 			throw new ApplicationException(Constants.Message.FAILED_CONNECTION + e.getMessage());
@@ -298,64 +303,66 @@ public class ConnectionService implements IConnectionService {
 	@Override
 	public Response findConnectionsRequestedV2(String userId, int offset, int limit, Constants.DIRECTION direction) {
 		Response response = new Response();
-
+		logger.info("findConnectionsRequestedV2 called for userId: {}, direction: {}, offset: {}, limit: {}", userId, direction, offset, limit);
 		try {
+			//Input validation
 			if (userId == null || userId.isEmpty()) {
 				throw new BadRequestException(Constants.Message.USER_ID_INVALID);
 			}
-			Map<String, String> relationProperties = new HashMap<>();
-			relationProperties.put(Constants.Graph.STATUS.getValue(), Constants.Status.PENDING);
-
-			String connectionRequestedInformation;
-			String connectionRecievedInformation;
-			List<Node> nodes  = new ArrayList<>();
-			Collection<Node> cachedNodes = new ArrayList<>();
-			boolean isCacheKeyExists = false;
-			List<String> cachedUserIds = new ArrayList<>();
+			//Prepare cache keys and TTL based on direction
+			String nodeCacheKey;
+			String countCacheKey;
+			int cacheTtl;
 			if (direction == Constants.DIRECTION.OUT) {
-				connectionRequestedInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId);
-				if (!StringUtils.isEmpty(connectionRequestedInformation)) {
-					cachedNodes = objectMapper.readValue(connectionRequestedInformation,
-							new TypeReference<Collection<Node>>() {
-							});
-					if (CollectionUtils.isEmpty(cachedNodes)) {
-						isCacheKeyExists = redisCacheMgr.hasKey(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId);
-					}
-				}
-			} else if (direction == Constants.DIRECTION.IN) {
-				connectionRecievedInformation = redisCacheMgr.getCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId);
-				if (!StringUtils.isEmpty(connectionRecievedInformation)) {
-					cachedNodes = objectMapper.readValue(connectionRecievedInformation,
-							new TypeReference<Collection<Node>>() {
-							});
-					if (CollectionUtils.isEmpty(cachedNodes)) {
-						isCacheKeyExists = redisCacheMgr.hasKey(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId);
-					}
-				}
-			}
-			if(!CollectionUtils.isEmpty(cachedNodes)) {
-				for (Node node : cachedNodes) {
-					cachedUserIds.add(node.getUserId());
-				}
-			} else if (isCacheKeyExists) {
-				logger.info("Cached nodes found for user: " + userId + " in direction: " + direction + ", but no data.");
+				nodeCacheKey = Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId;
+				cacheTtl = connectionProperties.getRedisUserConnectionRequestedTimeOut();
 			} else {
-				logger.info("No cached nodes found for user: " + userId + " in direction: " + direction);
-				nodes  = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
-				cachedNodes = enrichUserInfo(nodes);
-				if (direction == Constants.DIRECTION.OUT) {
-					redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + userId, cachedNodes, connectionProperties.getRedisUserConnectionRequestedTimeOut());
-				}
-				if (direction == Constants.DIRECTION.IN) {
-					redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId, cachedNodes, connectionProperties.getRedisUserConnectionRecievedTimeOut());
-				}
+				nodeCacheKey = Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + userId;
+				cacheTtl = connectionProperties.getRedisUserConnectionRecievedTimeOut();
+			}
+			logger.debug("Cache keys - nodeCacheKey: {}", nodeCacheKey);
+			//Attempt to fetch node list and count from cache
+			String cachedNodesJson = redisCacheMgr.getCache(nodeCacheKey);
+			List<Map<String, Object>> cachedNodes;
+			Integer cachedCount = 0;
+			//If both are cached, use cache
+			if (StringUtils.isNotEmpty(cachedNodesJson)) {
+				logger.info("Cache hit for userId: {} (direction: {}). Returning cached data.", userId, direction);
+				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<List<Map<String, Object>>>() {
+				});
+			} else {
+				//If cache miss, fetch from DB and cache the results
+				logger.info("Cache miss for userId: {} (direction: {}). Fetching from DB.", userId, direction);
+				Map<String, String> relationProperties = new HashMap<>();
+				relationProperties.put(Constants.Graph.STATUS.getValue(), Constants.Status.PENDING);
+				List<Node> nodes = nodeService.getNodes(userId, relationProperties, direction, offset, limit, null);
+				List<Map<String, String>> userList = nodes.stream()
+						.map(node -> {
+							Map<String, String> map = new HashMap<>();
+							map.put(Constants.USER_ID, node.getUserId());
+							map.put(Constants.CREATED_AT, node.getCreatedAt());
+							map.put(Constants.UPDATED_AT, node.getUpdatedAt());
+							map.put(Constants.STATUS, node.getStatus());
+							return map;
+						})
+						.collect(Collectors.toList());
+				cachedNodes = profileService.enrichNeo4JDataForRecommendataion(userList);
+				// Cache the results (including empty/zero)
+				redisCacheMgr.putCache(nodeCacheKey, cachedNodes, cacheTtl);
+				logger.debug("Caching node list and count for userId: {} (direction: {}) with TTL: {}", userId, direction, cacheTtl);
 			}
 			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, direction);
-			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
-			
+			cachedCount = userCount.get(Constants.COUNT);
+			if (cachedCount == null) {
+				cachedCount = 0;
+			}
+			// Build and return the response
+			response.put(Constants.COUNT, cachedCount);
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 			response.put(Constants.ResponseStatus.DATA, cachedNodes);
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
+			//Log method completion
+			logger.info("findConnectionsRequestedV2 completed for userId: {} (direction: {})", userId, direction);
 		} catch (Exception e) {
 			logger.error("ConnectionService::findConnectionsRequestedV2 ", e);
 			throw new ApplicationException(Constants.Message.FAILED_CONNECTION + e.getMessage());

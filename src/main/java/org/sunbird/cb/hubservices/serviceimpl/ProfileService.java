@@ -177,19 +177,7 @@ public class ProfileService implements IProfileService {
 				response.setResponseCode(HttpStatus.OK);
 				return response;
 			}
-			SBApiResponse cacheResponse = fetchAndCacheRecommendedUsers(request, userId, response, count);
-			if (cacheResponse != null) return cacheResponse;
-			List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
-			if(CollectionUtils.isEmpty(recommendationUsersList)){
-				logger.info("ProfileService : findRecommendations : Recommended Users List is empty for userId: {}", userId);
-				response.getParams().setStatus(HttpStatus.OK.toString());
-				response.getResult().put(Constants.MESSAGE,"Recommended users list is empty");
-				response.setResponseCode(HttpStatus.OK);
-				return response;
-			}
-			enrichUserInformationForUserRecommendation(recommendationUsersList, response);
-            response.getResult().put(Constants.COUNT, count);
-			return response;
+			return fetchAndCacheRecommendedUsers(request, userId, response, count);
 		} catch (Exception e) {
 			logger.error(String.format("ProfileService:findRecommendations:Error while fetching recommendation for the user %s %s", userId, e));
 			response.getParams().setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
@@ -553,10 +541,6 @@ public class ProfileService implements IProfileService {
 			List<String> role = getUserRoles(userId, (String) userProfile.get(Constants.ROOT_ORG_ID));
 			if (CollectionUtils.isEmpty(role)) {
 				logger.error("ProfileService : onboardNetworkHubUser : User roles not found for userId: {}", userId);
-				response.getParams().setStatus(HttpStatus.NOT_FOUND.toString());
-				response.getParams().setErrmsg("User roles not found");
-				response.setResponseCode(HttpStatus.NOT_FOUND);
-				return response;
 			}
 
 			Node node = new Node(designation, userId, role, (String) userProfile.get(Constants.ROOT_ORG_ID), new Date().toString());
@@ -653,24 +637,51 @@ public class ProfileService implements IProfileService {
 	 */
 	private SBApiResponse fetchAndCacheRecommendedUsers(Map<String, Object> request, String userId, SBApiResponse response, int count) throws IOException {
 		int size = (Integer) request.get(Constants.SIZE);
-		int offset = Math.max(0, (Integer) request.get(Constants.OFFSET));
-		if (offset != 0) {
-			offset = (offset * size) + 1;
-		}
+		int offset = Math.max(0, (Integer) request.get(Constants.OFFSET)) * size;
+
 		int cacheLimit = connectionProperties.getUserRecommendationCacheLimit();
-		if (offset >= 0 && offset <= cacheLimit && (offset + size) < cacheLimit) {
-			SBApiResponse cacheResponse = fetchUsersInfoFromCacheIfAvailable(offset, size, cacheLimit, userId, response, count);
-			if (cacheResponse != null) {
-				return cacheResponse;
-			} else {
-				request.put(Constants.SIZE, cacheLimit);
-				List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
-				ArrayNode enrichedFullList = enrichUserInformationForUserRecommendation(recommendationUsersList, response);
-				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + userId, enrichedFullList, networkServerProperties.getRedisUserListReadTimeOut());
-				return fetchUsersInfoFromCacheIfAvailable(offset, size, cacheLimit, userId, response, count);
+		String cacheKey = Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS +
+						Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + userId;
+
+		// Check current cache size
+		int requiredEndIndex = offset + size;
+		List<Map<String, Object>> cachedUsers = null;
+		String cachedData = redisCacheMgr.getCache(cacheKey);
+		if (!ObjectUtils.isEmpty(cachedData)) {
+			cachedUsers = mapper.readValue(cachedData, new TypeReference<List<Map<String, Object>>>() {});
+			if (cachedUsers.size() >= requiredEndIndex) {
+				List<Map<String, Object>> pagedUsers = cachedUsers.subList(offset, Math.min(requiredEndIndex, cachedUsers.size()));
+				response.getResult().put(Constants.RESPONSE, pagedUsers);
+				response.getParams().setStatus(Constants.OK);
+				response.setResponseCode(HttpStatus.OK);
+				response.getResult().put(Constants.COUNT, count);
+				return response;
 			}
 		}
-		return null;
+
+		// If cache is missing or insufficient
+		int fetchLimit = ((requiredEndIndex / cacheLimit) + 1) * cacheLimit;
+		request.put(Constants.SIZE, fetchLimit);
+		List<Map<String, String>> recommendationUsersList = connectionService.findRecommendationForUser(userId, request);
+		List<Map<String, Object>> enrichedFullList = enrichNeo4JDataForRecommendataion(recommendationUsersList);
+
+		redisCacheMgr.putCache(cacheKey, enrichedFullList, networkServerProperties.getRedisUserListReadTimeOut());
+
+		if (enrichedFullList.size() >= requiredEndIndex) {
+			List<Map<String, Object>> pagedUsers = enrichedFullList.subList(offset, Math.min(requiredEndIndex, enrichedFullList.size()));
+			response.getResult().put(Constants.RESPONSE, pagedUsers);
+			response.getParams().setStatus(Constants.OK);
+			response.setResponseCode(HttpStatus.OK);
+			response.getResult().put(Constants.COUNT, count);
+			return response;
+		}
+
+		// Edge case: still not enough
+		response.getResult().put(Constants.RESPONSE, Collections.emptyList());
+		response.getParams().setStatus(Constants.OK);
+		response.setResponseCode(HttpStatus.OK);
+		response.getResult().put(Constants.COUNT, 0);
+		return response;
 	}
 
 	/**
@@ -731,5 +742,22 @@ public class ProfileService implements IProfileService {
 		response.getParams().setStatus(Constants.OK);
 		response.setResponseCode(HttpStatus.OK);
 		return enrichedUserMap;
+	}
+
+	public List<Map<String, Object>> enrichNeo4JDataForRecommendataion(List<Map<String, String>> userList) {
+		if (CollectionUtils.isNotEmpty(userList)) {
+			List<Map<String, Object>> enrichedData = new ArrayList<>();
+			for (Map<String, String> user : userList) {
+				Map<String, Object> enrichedUser = new HashMap<>();
+				enrichedUser.put(Constants.USER_ID, user.get(Constants.USER_ID));
+				iUserUtility.getUserProfileFromRedis(enrichedUser);
+				enrichedUser.put(Constants.CREATED_AT, user.get(Constants.CREATED_AT));
+				enrichedUser.put(Constants.UPDATED_AT, user.get(Constants.UPDATED_AT));
+				enrichedUser.put(Constants.STATUS, user.get(Constants.STATUS));
+				enrichedData.add(enrichedUser);
+			}
+			return enrichedData;
+		}
+		return new ArrayList<>();
 	}
 }

@@ -6,6 +6,7 @@ import org.sunbird.cb.hubservices.model.Response;
 import org.sunbird.cb.hubservices.model.SBApiResponse;
 import org.sunbird.cb.hubservices.util.Constants;
 
+import java.util.List;
 import java.util.Map;
 
 public interface IProfileService {
@@ -29,4 +30,6 @@ public interface IProfileService {
 	SBApiResponse fetchTotalConnectionsCountByStatus(String authToken, Map<String, Object> request);
 
 	SBApiResponse upsertUserInformation(String userId);
+
+    List<Map<String, Object>> enrichNeo4JDataForRecommendataion(List<Map<String, String>> userList);
 }

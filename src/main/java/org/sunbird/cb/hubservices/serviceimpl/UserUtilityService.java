@@ -32,6 +32,7 @@ import org.sunbird.cb.hubservices.util.PrettyPrintingMap;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.MalformedParameterizedTypeException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -335,5 +336,132 @@ public class UserUtilityService implements IUserUtility {
         if (createdDate == null) return updatedDate;
         if (updatedDate == null) return createdDate;
         return createdDate.after(updatedDate) ? createdDate : updatedDate;
+    }
+
+    public void getUserProfileFromRedis(Map<String, Object> userProfile) {
+        if (MapUtils.isEmpty(userProfile)) {
+            return;
+        }
+        String userId = (String) userProfile.get(Constants.USER_ID);
+        String cacheKey = Constants.USER + ":basicProfile:" + userId;
+        try {
+            String cachedJson = redisCacheMgr.getCache(cacheKey);
+            List<String> basicProfileFieldsList = connectionProperties.getBasicProfileFields();
+            Map<String, Object> fullProfile;
+            if (StringUtils.isNotEmpty(cachedJson)) {
+                fullProfile = mapper.readValue(cachedJson, new TypeReference<Map<String, Object>>() {
+                });
+                List<String> cachedKeyList = new ArrayList<>(fullProfile.keySet());
+                List<String> differenceList = basicProfileFieldsList.stream()
+                        .filter(key -> !cachedKeyList.contains(key)).collect(Collectors.toList());
+                if (!differenceList.isEmpty()) {
+                    Map<String, Object> userDetails = fetchFromDatabase(userId, differenceList);
+                    if (MapUtils.isNotEmpty(userDetails)) {
+                        fullProfile.putAll(userDetails);
+                    }
+                }
+            } else {
+                fullProfile = fetchFromDatabase(userId, basicProfileFieldsList);
+            }
+            Map<String,Object> enrichedProfileMap = new HashMap<>();
+            enrichedProfileMap.put(Constants.DEPARTMENT_NAME,fullProfile.get(Constants.CHANNEL));
+            Map<String,Object> profileDetailsMap = (Map<String, Object>) fullProfile.get(Constants.PROFILE_DETAILS);
+            if(MapUtils.isNotEmpty(profileDetailsMap)){
+                List<Map<String,Object>> professionalDetailsMap = (List<Map<String, Object>>) profileDetailsMap.get(Constants.PROFESSIONAL_DETAILS);
+                enrichedProfileMap.put(Constants.EMPLOYMENT_DETAILS,profileDetailsMap.get(Constants.EMPLOYMENT_DETAILS));
+                if(!CollectionUtils.isEmpty(professionalDetailsMap)){
+                    enrichedProfileMap.put(Constants.DESIGNATION,professionalDetailsMap.get(0).get(Constants.DESIGNATION));
+                    enrichedProfileMap.put(Constants.PROFESSIONAL_DETAILS,professionalDetailsMap);
+                }
+                Map<String,Object> personalDetailsMap = (Map<String, Object>) profileDetailsMap.get(Constants.PERSONAL_DETAILS);
+                if(MapUtils.isNotEmpty(personalDetailsMap)){
+                    Map<String,Object> personalDetails = new HashMap<>();
+                    personalDetails.put(Constants.FIRST_NAME,personalDetailsMap.get(Constants.FIRST_NAME));
+                    personalDetails.put(Constants.PHONE_VERIFIED,personalDetailsMap.get(Constants.PHONE_VERIFIED));
+                    enrichedProfileMap.put(Constants.PERSONAL_DETAILS, personalDetails);
+                }
+            }
+            enrichedProfileMap.put(Constants.ORGANISATION_ID,fullProfile.get(Constants.ROOT_ORG_ID));
+            enrichedProfileMap.put(Constants.PROFILE_IMAGE_URL,fullProfile.get(Constants.PROFILE_IMAGE_URL));
+            enrichedProfileMap.put(Constants.PROFILE_BANNER_URL,fullProfile.get(Constants.PROFILE_BANNER_URL));
+            enrichedProfileMap.put(Constants.ROLES,fullProfile.get(Constants.ROLES));
+            enrichedProfileMap.put(Constants.ID,fullProfile.get(Constants.ID));
+            enrichedProfileMap.put(Constants.USER_ID,fullProfile.get(Constants.ID));
+            enrichedProfileMap.put(Constants.FULL_NAME,fullProfile.get(Constants.FULL_NAME));
+            userProfile.clear();
+            userProfile.putAll(enrichedProfileMap);
+        } catch (Exception e) {
+            logger.error("Error fetching basic profile for userId: {}", userId, e);
+        }
+    }
+
+    public Map<String, Object> fetchFromDatabase(String userId, List<String> keyList) {
+        if (CollectionUtils.isEmpty(keyList)) {
+            keyList = connectionProperties.getBasicProfileFields();
+        }
+        Map<String, Object> queryParams = Map.of(Constants.ID, userId);
+        List<Map<String, Object>> userList = cassandraOperation.getRecordsByProperties(
+                Constants.KEYSPACE_SUNBIRD, Constants.USER, queryParams, keyList);
+
+        if (CollectionUtils.isEmpty(userList)) { 
+            return Map.of();
+        }
+        Map<String, Object> userObj = userList.get(0);
+        String profileDetailsJson = (String) userObj.get(Constants.PROFILE_DETAILS);
+
+        try {
+            if (StringUtils.isNotBlank(profileDetailsJson)) {
+                Map<String, Object> profileDetailsMap = mapper.readValue(profileDetailsJson, new TypeReference<Map<String, Object>>() {
+                });
+                userObj.put(Constants.PROFILE_DETAILS, profileDetailsMap);
+                if (profileDetailsMap.containsKey(Constants.PERSONAL_DETAILS)) {
+                    Object personalDetails = profileDetailsMap.get(Constants.PERSONAL_DETAILS);
+                    if (personalDetails instanceof Map) {
+                        ((Map<String, Object>) personalDetails).remove(Constants.MOBILE);
+                        ((Map<String, Object>) personalDetails).remove(Constants.PRIMARY_EMAIL);
+                    }
+                }
+            } else {
+                userObj.put(Constants.PROFILE_DETAILS, Map.of());
+            }
+        } catch (IOException e) {
+            logger.error("Invalid profileDetails JSON for userId: {}", userId, e);
+            userObj.put(Constants.PROFILE_DETAILS, Map.of());
+        }
+        userObj.put(Constants.ROLES, getUserRoles(userId, (String) userObj.get(Constants.ROOT_ORG_ID)));
+        return userObj;
+    }
+
+    public List<String> getUserRoles(String userId, String rootOrgId) {
+        List<Map<String, Object>> records = cassandraOperation.getRecordsByProperties(
+                Constants.KEYSPACE_SUNBIRD, Constants.USER_ROLES,
+                Map.of(Constants.USERID_KEY, userId), List.of(Constants.ROLE, Constants.SCOPE)
+        );
+        return records.stream()
+                .map(record -> {
+                    Object scopeObj = record.get(Constants.SCOPE);
+                    List<Map<String, Object>> scopes = new ArrayList<>();
+                    if (scopeObj instanceof List) {
+                        scopes = (List<Map<String, Object>>) scopeObj;
+                    } else if (scopeObj instanceof String) {
+                        String scopeStr = (String) scopeObj;
+                        if (StringUtils.isNotBlank(scopeStr)) {
+                            try {
+                                scopes = mapper.readValue(scopeStr, new TypeReference<List<Map<String, Object>>>() {
+                                });
+                            } catch (Exception e) {
+                                logger.warn("Failed to parse scope JSON for userId {}: {}", userId, e.getMessage());
+                                return null;
+                            }
+                        }
+                    }
+                    if (!scopes.isEmpty() && scopes.stream().allMatch(scope -> rootOrgId.equals(scope.get(Constants.ORGANISATION_ID)))) {
+                        return (String) record.get(Constants.ROLE);
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
     }
 }
