@@ -324,7 +324,7 @@ public class ConnectionService implements IConnectionService {
 			Collection<Node> cachedNodes;
 			Integer cachedCount;
 			//If both are cached, use cache
-			if ( StringUtils.isNotEmpty(cachedNodesJson) &&  StringUtils.isNotEmpty(cachedCountJson)) {
+			if (StringUtils.isNotEmpty(cachedNodesJson) && StringUtils.isNotEmpty(cachedCountJson)) {
 				logger.info("Cache hit for userId: {} (direction: {}). Returning cached data.", userId, direction);
 				String nodesJson = objectMapper.readValue(cachedNodesJson, String.class);
 				cachedNodes = objectMapper.readValue(nodesJson, new TypeReference<Collection<Node>>() {
