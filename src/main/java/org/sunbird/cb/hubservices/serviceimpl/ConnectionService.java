@@ -326,8 +326,7 @@ public class ConnectionService implements IConnectionService {
 			//If both are cached, use cache
 			if (StringUtils.isNotEmpty(cachedNodesJson) && StringUtils.isNotEmpty(cachedCountJson)) {
 				logger.info("Cache hit for userId: {} (direction: {}). Returning cached data.", userId, direction);
-				String nodesJson = objectMapper.readValue(cachedNodesJson, String.class);
-				cachedNodes = objectMapper.readValue(nodesJson, new TypeReference<Collection<Node>>() {
+				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<Collection<Node>>() {
 				});
 				cachedCount = objectMapper.readValue(cachedCountJson, Integer.class);
 			} else {
@@ -343,8 +342,8 @@ public class ConnectionService implements IConnectionService {
 					cachedCount = 0;
 				}
 				// Cache the results (including empty/zero)
-				redisCacheMgr.putCache(nodeCacheKey, objectMapper.writeValueAsString(cachedNodes), cacheTtl);
-				redisCacheMgr.putCache(countCacheKey, objectMapper.writeValueAsString(cachedCount), cacheTtl);
+				redisCacheMgr.putCache(nodeCacheKey, cachedNodes, cacheTtl);
+				redisCacheMgr.putCache(countCacheKey, cachedCount, cacheTtl);
 				logger.debug("Caching node list and count for userId: {} (direction: {}) with TTL: {}", userId, direction, cacheTtl);
 			}
 			// Build and return the response
