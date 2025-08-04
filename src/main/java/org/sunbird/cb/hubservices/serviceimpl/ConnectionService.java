@@ -258,39 +258,40 @@ public class ConnectionService implements IConnectionService {
 			if (userId == null || userId.isEmpty()) {
 				throw new BadRequestException(Constants.Message.USER_ID_INVALID);
 			}
-			Map<String, String> relationProperties = new HashMap<>();
-			relationProperties.put(Constants.Graph.STATUS.getValue(), status);
-			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit, null);
-			Collection<Node> cachedNodes = new ArrayList<>();
-			List<String> userIds = nodes.stream().map(Node::getUserId).collect(Collectors.toList());
-			List<String> cachedUserIds = new ArrayList<>();
-			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.APPROVED, null);
-			String connectionEstablishedInformation = redisCacheMgr.getCache(
-					Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId);
-			if (!StringUtils.isEmpty(connectionEstablishedInformation)) {
-				cachedNodes = objectMapper.readValue(connectionEstablishedInformation,
-						new TypeReference<Collection<Node>>() {
-						});
+			String nodeCacheKey = Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId;
+			int cacheTtl = connectionProperties.getRedisUserConnectionEstablishedTimeOut();
+			String cachedNodesJson = redisCacheMgr.getCache(nodeCacheKey);
+			List<Map<String, Object>> cachedNodes;
+			Integer cachedCount=0;
+			if (StringUtils.isNotEmpty(cachedNodesJson)) {
+				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<List<Map<String, Object>>>() {});
+			} else {
+				Map<String, String> relationProperties = new HashMap<>();
+				relationProperties.put(Constants.Graph.STATUS.getValue(), status);
+				List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit, null);
+				List<Map<String, String>> userList = nodes.stream()
+						.map(node -> {
+							Map<String, String> map = new HashMap<>();
+							map.put(Constants.USER_ID, node.getUserId());
+							map.put(Constants.CREATED_AT, node.getCreatedAt());
+							map.put(Constants.UPDATED_AT, node.getUpdatedAt());
+							map.put(Constants.STATUS, node.getStatus());
+							return map;
+						})
+						.collect(Collectors.toList());
+				cachedNodes = profileService.enrichNeo4JDataForRecommendataion(userList);
+				redisCacheMgr.putCache(nodeCacheKey, objectMapper.writeValueAsString(cachedNodes), cacheTtl);
 			}
-			if(!CollectionUtils.isEmpty(cachedNodes)) {
-				for (Node node : cachedNodes) {
-					cachedUserIds.add(node.getUserId());
-				}
+			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, null);
+			cachedCount = userCount.get(Constants.COUNT);
+			if (cachedCount == null) {
+				cachedCount = 0;
 			}
-			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
+			response.put(Constants.COUNT, cachedCount);
 			response.put(Constants.ResponseStatus.PAGENO, offset);
-				if (CollectionUtils.isNotEmpty(nodes)&& !userIds.equals(cachedUserIds)) {
-				Collection<Node> enrichedUserInfoNodes = enrichUserInfo(nodes);
-				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId, enrichedUserInfoNodes, connectionProperties.getRedisUserConnectionEstablishedTimeOut());
-				response.put(Constants.ResponseStatus.DATA, enrichedUserInfoNodes);
-				response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
-				response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
-				return response;
-			}
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 			response.put(Constants.ResponseStatus.DATA, cachedNodes);
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
-
 		} catch (Exception e) {
 			logger.error("ConnectionService::findAllConnectionsIdsByStatusV2 " , e);
 			throw new ApplicationException(Constants.Message.FAILED_CONNECTION + e.getMessage());
@@ -327,7 +328,7 @@ public class ConnectionService implements IConnectionService {
 			//If both are cached, use cache
 			if (StringUtils.isNotEmpty(cachedNodesJson)) {
 				logger.info("Cache hit for userId: {} (direction: {}). Returning cached data.", userId, direction);
-				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<Collection<Node>>() {
+				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<List<Map<String, Object>>>() {
 				});
 			} else {
 				//If cache miss, fetch from DB and cache the results
@@ -346,14 +347,14 @@ public class ConnectionService implements IConnectionService {
 						})
 						.collect(Collectors.toList());
 				cachedNodes = profileService.enrichNeo4JDataForRecommendataion(userList);
-				Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, direction);
-				cachedCount = userCount.get(Constants.COUNT);
-				if (cachedCount == null) {
-					cachedCount = 0;
-				}
 				// Cache the results (including empty/zero)
 				redisCacheMgr.putCache(nodeCacheKey, cachedNodes, cacheTtl);
 				logger.debug("Caching node list and count for userId: {} (direction: {}) with TTL: {}", userId, direction, cacheTtl);
+			}
+			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.PENDING, direction);
+			cachedCount = userCount.get(Constants.COUNT);
+			if (cachedCount == null) {
+				cachedCount = 0;
 			}
 			// Build and return the response
 			response.put(Constants.COUNT, cachedCount);
