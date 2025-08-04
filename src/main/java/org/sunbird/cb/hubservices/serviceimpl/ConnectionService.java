@@ -258,39 +258,40 @@ public class ConnectionService implements IConnectionService {
 			if (userId == null || userId.isEmpty()) {
 				throw new BadRequestException(Constants.Message.USER_ID_INVALID);
 			}
-			Map<String, String> relationProperties = new HashMap<>();
-			relationProperties.put(Constants.Graph.STATUS.getValue(), status);
-			List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit, null);
-			Collection<Node> cachedNodes = new ArrayList<>();
-			List<String> userIds = nodes.stream().map(Node::getUserId).collect(Collectors.toList());
-			List<String> cachedUserIds = new ArrayList<>();
-			Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.APPROVED, null);
-			String connectionEstablishedInformation = redisCacheMgr.getCache(
-					Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId);
-			if (!StringUtils.isEmpty(connectionEstablishedInformation)) {
-				cachedNodes = objectMapper.readValue(connectionEstablishedInformation,
-						new TypeReference<Collection<Node>>() {
-						});
-			}
-			if(!CollectionUtils.isEmpty(cachedNodes)) {
-				for (Node node : cachedNodes) {
-					cachedUserIds.add(node.getUserId());
+			String nodeCacheKey = Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId;
+			int cacheTtl = connectionProperties.getRedisUserConnectionEstablishedTimeOut();
+			String cachedNodesJson = redisCacheMgr.getCache(nodeCacheKey);
+			List<Map<String, Object>> cachedNodes;
+			Integer cachedCount=0;
+			if (StringUtils.isNotEmpty(cachedNodesJson)) {
+				cachedNodes = objectMapper.readValue(cachedNodesJson, new TypeReference<Collection<Node>>() {});
+			} else {
+				Map<String, String> relationProperties = new HashMap<>();
+				relationProperties.put(Constants.Graph.STATUS.getValue(), status);
+				List<Node> nodes = nodeService.getNodes(userId, relationProperties, null, offset, limit, null);
+				List<Map<String, String>> userList = nodes.stream()
+						.map(node -> {
+							Map<String, String> map = new HashMap<>();
+							map.put(Constants.USER_ID, node.getUserId());
+							map.put(Constants.CREATED_AT, node.getCreatedAt());
+							map.put(Constants.UPDATED_AT, node.getUpdatedAt());
+							map.put(Constants.STATUS, node.getStatus());
+							return map;
+						})
+						.collect(Collectors.toList());
+				cachedNodes = profileService.enrichNeo4JDataForRecommendataion(userList);
+				Map<String, Integer> userCount = nodeService.getConnectionsCountByStatus(userId, Constants.Status.APPROVED, null);
+				cachedCount = userCount.get(Constants.COUNT);
+				if (cachedCount == null) {
+					cachedCount = 0;
 				}
+				redisCacheMgr.putCache(nodeCacheKey, objectMapper.writeValueAsString(cachedNodes), cacheTtl);
 			}
-			response.put(Constants.COUNT, userCount.get(Constants.COUNT));
+			response.put(Constants.COUNT, cachedCount);
 			response.put(Constants.ResponseStatus.PAGENO, offset);
-				if (CollectionUtils.isNotEmpty(nodes)&& !userIds.equals(cachedUserIds)) {
-				Collection<Node> enrichedUserInfoNodes = enrichUserInfo(nodes);
-				redisCacheMgr.putCache(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + userId, enrichedUserInfoNodes, connectionProperties.getRedisUserConnectionEstablishedTimeOut());
-				response.put(Constants.ResponseStatus.DATA, enrichedUserInfoNodes);
-				response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
-				response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
-				return response;
-			}
 			response.put(Constants.ResponseStatus.MESSAGE, Constants.ResponseStatus.SUCCESSFUL);
 			response.put(Constants.ResponseStatus.DATA, cachedNodes);
 			response.put(Constants.ResponseStatus.STATUS, HttpStatus.OK);
-
 		} catch (Exception e) {
 			logger.error("ConnectionService::findAllConnectionsIdsByStatusV2 " , e);
 			throw new ApplicationException(Constants.Message.FAILED_CONNECTION + e.getMessage());
