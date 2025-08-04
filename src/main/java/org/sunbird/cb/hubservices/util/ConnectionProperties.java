@@ -2,6 +2,10 @@ package org.sunbird.cb.hubservices.util;
 
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.Arrays;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -153,4 +157,11 @@ public class ConnectionProperties {
 
 	@Value("${connections.both.count.query}")
 	private String connectionsBothCountQuery;
+
+	@Value("${basic.profile.fields}")
+    private String basicProfileFields;
+
+	public List<String> getBasicProfileFields() {
+        return Arrays.asList(basicProfileFields.split(","));
+    }
 }

@@ -2,16 +2,19 @@ package org.sunbird.cb.hubservices.serviceimpl;
 
 import java.util.*;
 
+import org.apache.commons.collections4.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
 import org.sunbird.cb.hubservices.dao.IGraphDao;
 import org.sunbird.cb.hubservices.exception.GraphException;
 import org.sunbird.cb.hubservices.exception.ValidationException;
 import org.sunbird.cb.hubservices.model.Node;
 import org.sunbird.cb.hubservices.service.INodeService;
+import org.sunbird.cb.hubservices.util.ConnectionProperties;
 import org.sunbird.cb.hubservices.util.Constants;
 
 import io.micrometer.core.instrument.util.StringUtils;
@@ -23,6 +26,12 @@ public class NodeService implements INodeService {
 
 	@Autowired
 	private IGraphDao graphDao;
+
+	@Autowired
+	RedisCacheMgr redisCacheMgr;
+
+	@Autowired
+	private ConnectionProperties connectionProperties;
 
 	@Override
 	public Boolean connect(Node from, Node to, Map<String, String> relationProperties) throws Exception {
@@ -149,13 +158,31 @@ public class NodeService implements INodeService {
 	 * @return A map containing the count of connections by status.
 	 */
 	@Override
-	public Map<String, Integer> getConnectionsCountByStatus(String userId, String pending, Constants.DIRECTION direction) {
+	public Map<String, Integer> getConnectionsCountByStatus(String userId, String status, Constants.DIRECTION direction) {
+		int count = 0;
+		Map<String, Integer> connectionsCount = new HashMap<>();
 		try {
-			return graphDao.getConnectionsCountByStatus(userId, pending, direction);
+			String cacheKey = Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTIONS_COUNT
+					+ Constants.UNDER_SCORE + status + Constants.UNDER_SCORE;
+			if (direction != null) {
+				cacheKey += direction.toString() + Constants.UNDER_SCORE;
+			}
+			cacheKey += userId;
+
+			String countStr = redisCacheMgr.getCache(cacheKey);
+			if (!StringUtils.isEmpty(countStr)) {
+				connectionsCount.put(Constants.COUNT, Integer.parseInt(countStr));
+			} else {
+				connectionsCount = graphDao.getConnectionsCountByStatus(userId, status, direction);
+				count = MapUtils.getInteger(connectionsCount, Constants.COUNT, 0);
+				redisCacheMgr.putCache(cacheKey,
+						count, connectionProperties.getRedisUserCountTimeOut());
+			}
 		} catch (GraphException e) {
 			logger.error(String.format("Error fetching connections count by status for user %s: %s", userId, e));
+			connectionsCount.put(Constants.COUNT, 0);
 		}
-		return new HashMap<>();
+		return connectionsCount;
 	}
 
 	/**

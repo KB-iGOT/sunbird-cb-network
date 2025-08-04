@@ -408,9 +408,7 @@ public class GraphDao implements IGraphDao {
             parameters.put(Constants.OFFSET, offset);
             Statement statement = getStatementForRecommendationFromSameOrg(parameters);
             StatementResult result = transaction.run(statement);
-            List<Record> recordsFromSameOrg = result.list();
-            result.consume();
-            return recordsFromSameOrg;
+            return result.list();
         } catch (Exception e) {
             logger.error("Error finding recommendations for user {}: {}", userId, e.getMessage());
         }
@@ -554,6 +552,7 @@ public class GraphDao implements IGraphDao {
      */
     @Override
     public Map<String, Integer> getConnectionsCountByStatus(String userId, String status, Constants.DIRECTION direction) {
+        Map<String, Integer> resultMap = new HashMap<>();
         try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
@@ -575,13 +574,12 @@ public class GraphDao implements IGraphDao {
             Record connectionCountRecord = result.single();
             result.consume();
             int count = connectionCountRecord.get(Constants.COUNT).asInt();
-            Map<String, Integer> resultMap = new HashMap<>();
             resultMap.put(Constants.COUNT, count);
-            return resultMap;
         } catch (Exception e) {
             logger.error(String.format("Error fetching connections count by status for user %s: %s", userId, e));
+            resultMap.put(Constants.COUNT, 0);
         }
-        return new HashMap<>();
+        return resultMap;
     }
 
     /**
