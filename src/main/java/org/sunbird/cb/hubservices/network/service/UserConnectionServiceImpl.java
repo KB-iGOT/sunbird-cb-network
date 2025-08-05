@@ -108,31 +108,31 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         String fromUserId = request.getUserIdFrom();
         String toUserId = request.getUserIdTo();
         if (Constants.APPROVED.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + toUserId);
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + toUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_RECEIVED_KEY + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_REQUESTED_KEY + toUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + toUserId);
         } else if (Constants.REJECTED.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + toUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_RECEIVED_KEY + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_REQUESTED_KEY + toUserId);
         } else if (Constants.BLOCKED.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + toUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + toUserId);
         } else if (Constants.WITHDRAWN.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + toUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_REQUESTED_KEY + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_RECEIVED_KEY + toUserId);
         } else if (Constants.UNBLOCKED.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.BLOCKED_USERS + Constants.UNDER_SCORE + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_BLOCKED_USERS_KEY + fromUserId);
         } else if (Constants.REMOVED.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_ESTABLISHED + Constants.UNDER_SCORE + toUserId);
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.MENTORS + Constants.UNDER_SCORE + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + toUserId);
-            redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.MENTORS + Constants.UNDER_SCORE + toUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + toUserId);
+            redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USERS_KEY + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_MENTORS_KEY + fromUserId);
+            redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USERS_KEY + toUserId);
+            redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_MENTORS_KEY + toUserId);
         }
-        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USER_COUNT + Constants.UNDER_SCORE + fromUserId);
-        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USER_COUNT + Constants.UNDER_SCORE + toUserId);
+        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USER_COUNT_KEY + fromUserId);
+        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USER_COUNT_KEY + toUserId);
         return response;
     }
 
@@ -143,14 +143,14 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         Response response = connectionService.upsert(request, Constants.ADD_OPERATION);
         String fromUserId = request.getUserIdFrom();
         String toUserId = request.getUserIdTo();
-        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + fromUserId);
-        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.MENTORS + Constants.UNDER_SCORE + fromUserId);
-        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USERS + Constants.UNDER_SCORE + toUserId);
-        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.MENTORS + Constants.UNDER_SCORE + toUserId);
-        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_REQUESTED + Constants.UNDER_SCORE + fromUserId);
-        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.CONNECTION_RECIEVED + Constants.UNDER_SCORE + toUserId);
-        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USER_COUNT + Constants.UNDER_SCORE + fromUserId);
-        redisCacheMgr.deleteKeyByName(Constants.USER_LIST + Constants.UNDER_SCORE + Constants.RECOMMENDED_USERS + Constants.UNDER_SCORE + Constants.USER_COUNT + Constants.UNDER_SCORE + toUserId);
+        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USERS_KEY + fromUserId);
+        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_MENTORS_KEY + fromUserId);
+        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USERS_KEY + toUserId);
+        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_MENTORS_KEY + toUserId);
+        redisCacheMgr.deleteKeyByName(Constants.CONNECTION_REQUESTED_KEY + fromUserId);
+        redisCacheMgr.deleteKeyByName(Constants.CONNECTION_RECEIVED_KEY + toUserId);
+        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USER_COUNT_KEY + fromUserId);
+        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USER_COUNT_KEY + toUserId);
         return response;
     }
 }

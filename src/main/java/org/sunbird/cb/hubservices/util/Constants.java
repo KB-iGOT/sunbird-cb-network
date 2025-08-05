@@ -173,6 +173,13 @@ public class Constants {
 	public static final String CONNECTIONS_COUNT = "connectionsCount";
 	public static final String DEPARTMENT_NAME = "departmentName";
 	public static final String PHONE_VERIFIED = "phoneVerified";
+	public static final String RECOMMENDED_USERS_USER_COUNT_KEY = "userList_recommendedUsers_userCount_";
+	public static final String RECOMMENDED_USERS_USERS_KEY = "userList_recommendedUsers_users_";
+	public static final String RECOMMENDED_USERS_MENTORS_KEY = "userList_recommendedUsers_mentors_";
+	public static final String CONNECTION_ESTABLISHED_KEY = "userList_connectionEstablished_";
+	public static final String CONNECTION_REQUESTED_KEY = "userList_connectionRequested_";
+	public static final String CONNECTION_RECEIVED_KEY = "userList_connectionRecieved_";
+	public static final String RECOMMENDED_USERS_BLOCKED_USERS_KEY = "userList_recommendedUsers_blockedUsers_";
 
 	public enum Graph {
 		ID("userId"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
