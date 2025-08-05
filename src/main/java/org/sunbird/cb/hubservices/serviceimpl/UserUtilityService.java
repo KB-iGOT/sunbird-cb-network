@@ -382,8 +382,8 @@ public class UserUtilityService implements IUserUtility {
                 }
             }
             enrichedProfileMap.put(Constants.ORGANISATION_ID,fullProfile.get(Constants.ROOT_ORG_ID));
-            enrichedProfileMap.put(Constants.PROFILE_IMAGE_URL,fullProfile.get(Constants.PROFILE_IMAGE_URL));
-            enrichedProfileMap.put(Constants.PROFILE_BANNER_URL,fullProfile.get(Constants.PROFILE_BANNER_URL));
+            enrichedProfileMap.put(Constants.PROFILE_IMAGE_URL,profileDetailsMap.get(Constants.PROFILE_IMAGE_URL));
+            enrichedProfileMap.put(Constants.PROFILE_BANNER_URL,profileDetailsMap.get(Constants.PROFILE_BANNER_URL));
             enrichedProfileMap.put(Constants.ROLES,fullProfile.get(Constants.ROLES));
             enrichedProfileMap.put(Constants.ID,fullProfile.get(Constants.ID));
             enrichedProfileMap.put(Constants.USER_ID,fullProfile.get(Constants.ID));

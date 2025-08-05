@@ -174,6 +174,7 @@ public class Constants {
 	public static final String DEPARTMENT_NAME = "departmentName";
 	public static final String PHONE_VERIFIED = "phoneVerified";
 
+
 	public enum Graph {
 		ID("userId"), STATUS(ResponseStatus.STATUS), UUID("UUID"), PROPS("props"), CREATED_AT("createdAt"), CONNECTION_ID("connectionId"),
 		UPDATED_AT("updatedAt"), USER_ID("userId");

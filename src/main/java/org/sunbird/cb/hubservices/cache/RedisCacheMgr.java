@@ -17,8 +17,58 @@ import java.util.*;
 @Component
 public class RedisCacheMgr {
 
+    public static final String RECOMMENDED_USERS_COUNT_KEY = "userList_recommendedUsers_userCount_";
+    public static final String RECOMMENDED_USERS_KEY = "userList_recommendedUsers_users_";
+    public static final String RECOMMENDED_USERS_MENTORS_KEY = "userList_recommendedUsers_mentors_";
+    public static final String CONNECTION_ESTABLISHED_KEY = "userList_connectionEstablished_";
+    public static final String CONNECTION_REQUESTED_KEY = "userList_connectionRequested_";
+    public static final String CONNECTION_RECEIVED_KEY = "userList_connectionRecieved_";
+    public static final String RECOMMENDED_USERS_BLOCKED_USERS_KEY = "userList_recommendedUsers_blockedUsers_";
+
     private static int cache_ttl = 84600;
 
+    public static final List<String> ADD_USER_OP_KEYS_TO_CLEAR = List.of(
+            RECOMMENDED_USERS_KEY,
+            RECOMMENDED_USERS_MENTORS_KEY,
+            CONNECTION_REQUESTED_KEY,
+            CONNECTION_RECEIVED_KEY,
+            RECOMMENDED_USERS_COUNT_KEY
+    );
+
+    public static final List<String> APPROVED_OP_KEYS_TO_CLEAR = List.of(
+            CONNECTION_RECEIVED_KEY,
+            CONNECTION_REQUESTED_KEY,
+            CONNECTION_ESTABLISHED_KEY
+    );
+
+    public static final List<String> REJECTED_OP_KEYS_TO_CLEAR = List.of(
+            CONNECTION_RECEIVED_KEY,
+            CONNECTION_REQUESTED_KEY
+    );
+
+    public static final List<String> BLOCKED_OP_KEYS_TO_CLEAR = List.of(
+            CONNECTION_ESTABLISHED_KEY
+    );
+
+    public static final List<String> WITHDRAWN_OP_KEYS_TO_CLEAR = List.of(
+            CONNECTION_REQUESTED_KEY,
+            CONNECTION_RECEIVED_KEY
+    );
+
+    public static final List<String> UNBLOCKED_OP_KEYS_TO_CLEAR = List.of(
+            RECOMMENDED_USERS_BLOCKED_USERS_KEY
+    );
+
+    public static final List<String> REMOVED_OP_KEYS_TO_CLEAR = List.of(
+            CONNECTION_ESTABLISHED_KEY,
+            RECOMMENDED_USERS_KEY,
+            RECOMMENDED_USERS_MENTORS_KEY
+    );
+
+    public static final List<String> RECOMMENDED_USER_COUNT_KEYS = List.of(
+            RECOMMENDED_USERS_COUNT_KEY
+    );
+    
     @Autowired
     private JedisPool jedisPool;
 
@@ -159,6 +209,19 @@ public class RedisCacheMgr {
         } catch (Exception e) {
             logger.error("Failed to check existence for key {}: {}", key, e.getMessage());
             return false;
+        }
+    }
+
+    public void deleteKeysByName(List<String> keyPrefixes, String... userIds) {
+        if (keyPrefixes == null || userIds == null) {
+            return;
+        }
+        for (String prefix : keyPrefixes) {
+            for (String userId : userIds) {
+                if (prefix != null && userId != null) {
+                    deleteKeyByName(prefix + userId);
+                }
+            }
         }
     }
 }
