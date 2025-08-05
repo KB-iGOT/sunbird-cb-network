@@ -99,40 +99,27 @@ public class UserConnectionServiceImpl implements UserConnectionService {
     }
 
 
-    @Override
     public Response updateUserConnection(ConnectionRequest request) {
-        request.setUpdatedAt(new Date().toString());
         request.setUpdatedAt(new Date().toString());
         Response response = connectionService.upsert(request, Constants.UPDATE_OPERATION);
         String status = request.getStatus();
         String fromUserId = request.getUserIdFrom();
         String toUserId = request.getUserIdTo();
+
         if (Constants.APPROVED.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_RECEIVED_KEY + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_REQUESTED_KEY + toUserId);
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + toUserId);
+            redisCacheMgr.deleteKeysByName(RedisCacheMgr.APPROVED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
         } else if (Constants.REJECTED.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_RECEIVED_KEY + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_REQUESTED_KEY + toUserId);
+            redisCacheMgr.deleteKeysByName(RedisCacheMgr.REJECTED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
         } else if (Constants.BLOCKED.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + toUserId);
+            redisCacheMgr.deleteKeysByName(RedisCacheMgr.BLOCKED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
         } else if (Constants.WITHDRAWN.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_REQUESTED_KEY + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_RECEIVED_KEY + toUserId);
+            redisCacheMgr.deleteKeysByName(RedisCacheMgr.WITHDRAWN_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
         } else if (Constants.UNBLOCKED.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_BLOCKED_USERS_KEY + fromUserId);
+            redisCacheMgr.deleteKeysByName(RedisCacheMgr.UNBLOCKED_OP_KEYS_TO_CLEAR, fromUserId);
         } else if (Constants.REMOVED.equalsIgnoreCase(status)) {
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.CONNECTION_ESTABLISHED_KEY + toUserId);
-            redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USERS_KEY + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_MENTORS_KEY + fromUserId);
-            redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USERS_KEY + toUserId);
-            redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_MENTORS_KEY + toUserId);
+            redisCacheMgr.deleteKeysByName(RedisCacheMgr.REMOVED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
         }
-        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USER_COUNT_KEY + fromUserId);
-        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USER_COUNT_KEY + toUserId);
+        redisCacheMgr.deleteKeysByName(RedisCacheMgr.RECOMMENDED_USER_COUNT_KEYS, fromUserId, toUserId);
         return response;
     }
 
@@ -143,14 +130,7 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         Response response = connectionService.upsert(request, Constants.ADD_OPERATION);
         String fromUserId = request.getUserIdFrom();
         String toUserId = request.getUserIdTo();
-        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USERS_KEY + fromUserId);
-        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_MENTORS_KEY + fromUserId);
-        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USERS_KEY + toUserId);
-        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_MENTORS_KEY + toUserId);
-        redisCacheMgr.deleteKeyByName(Constants.CONNECTION_REQUESTED_KEY + fromUserId);
-        redisCacheMgr.deleteKeyByName(Constants.CONNECTION_RECEIVED_KEY + toUserId);
-        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USER_COUNT_KEY + fromUserId);
-        redisCacheMgr.deleteKeyByName(Constants.RECOMMENDED_USERS_USER_COUNT_KEY + toUserId);
+        redisCacheMgr.deleteKeysByName(RedisCacheMgr.ADD_USER_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
         return response;
     }
 }
