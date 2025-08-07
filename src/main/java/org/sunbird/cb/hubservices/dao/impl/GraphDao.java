@@ -397,13 +397,8 @@ public class GraphDao implements IGraphDao {
         try (Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
-            int size = (Integer) request.get(Constants.SIZE);
-            int offset = Math.max(0, (Integer) request.get(Constants.OFFSET));
-            parameters.put(Constants.SIZE, size);
-            if (offset != 0) {
-                offset = (offset * size) + 1;
-            }
-            parameters.put(Constants.OFFSET, offset);
+            parameters.put(Constants.SIZE, request.get(Constants.SIZE));
+            parameters.put(Constants.OFFSET, request.get(Constants.OFFSET));
             Statement statement = getStatementForRecommendationFromSameOrg(parameters);
             StatementResult result = transaction.run(statement);
             return result.list();
