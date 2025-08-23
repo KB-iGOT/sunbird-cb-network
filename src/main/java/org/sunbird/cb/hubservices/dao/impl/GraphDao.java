@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 import org.neo4j.driver.v1.*;
@@ -44,25 +45,27 @@ public class GraphDao implements IGraphDao {
     @Autowired
     ConnectionProperties connectionProperties;
 
-    int transactionTimeout = Integer.parseInt(PropertiesCache.getInstance().getProperty(Constants.NEO4J_TRANSACTION_TIMEOUT), 30);
+    int transactionTimeout = Optional
+            .ofNullable(PropertiesCache.getInstance().getProperty(Constants.NEO4J_TRANSACTION_TIMEOUT))
+            .map(Integer::parseInt)
+            .orElse(30);
 
     @Override
      public Boolean upsertNode(Node node) throws Exception {
         try (Session session = neo4jDriver.session()) {
-            TransactionConfig txCfg = TransactionConfig.builder()
-                .withTimeout(java.time.Duration.ofSeconds(transactionTimeout))
-                .build();
-        try (Transaction tx = session.beginTransaction(txCfg)) {
+        try (Transaction tx = session.beginTransaction()) {
             StatementResult result = tx.run("MATCH (n:" + label + ") WHERE n.userId=$fromUUID RETURN n",
                     parameters(Constants.FROM_UUID, node.getUserId()));
             if (result.hasNext()) {
+                result.consume();
                 logger.info("Node exists, skipping creation.");
             } else {
                 Map<String, Object> props = new ObjectMapper().convertValue(node, Map.class);
-                tx.run("CREATE (n:" + label + ") SET n = $props RETURN n", Collections.singletonMap("props", props));
-                tx.commitAsync().toCompletableFuture().get();
+                result = tx.run("CREATE (n:" + label + ") SET n = $props RETURN n", Collections.singletonMap("props", props));
+                result.consume();
                 logger.info("Node created for userId {}", node.getUserId());
             }
+            tx.success();
         } catch (Exception e) {
             logger.error("Error creating node: ", e);
             return Boolean.FALSE;
@@ -76,10 +79,7 @@ public class GraphDao implements IGraphDao {
     public Boolean upsertRelation(Node nodeFrom, Node nodeTo, Map<String, String> relationProperties) throws Exception {
         boolean isUpserted = Boolean.FALSE;
         try (Session session = neo4jDriver.session()) {
-            TransactionConfig txCfg = TransactionConfig.builder()
-                .withTimeout(java.time.Duration.ofSeconds(transactionTimeout))
-                .build();
-        try (Transaction transaction = session.beginTransaction(txCfg)) {
+        try (Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.FROM_UUID, nodeFrom.getUserId());
             parameters.put(Constants.TO_UUID, nodeTo.getUserId());
@@ -128,12 +128,11 @@ public class GraphDao implements IGraphDao {
                         logger.debug(nodeTo.getUserId(), nodeFrom.getUserId());
                     isUpserted = updateRelationshipBetweenTwoNodes(nodeTo, nodeFrom, statement, result, transaction, recordSize, relationProperties);
                 }
-                transaction.commitAsync().toCompletableFuture().get();
             }
+            transaction.success();
         } catch (ClientException e) {
             logger.error("user relation creation failed : ", e);
             return Boolean.FALSE;
-
         }
         }
         return isUpserted;
@@ -188,11 +187,7 @@ public class GraphDao implements IGraphDao {
         int count;
 
         try (Session session = neo4jDriver.session()) {
-            TransactionConfig txCfg = TransactionConfig.builder()
-                .withTimeout(java.time.Duration.ofSeconds(transactionTimeout))
-                .build();
-            try (Transaction transaction = session.beginTransaction(txCfg)) {
-
+            try (Transaction transaction = session.beginTransaction()) {
                 Map<String, Object> parameters = new HashMap<>();
                 parameters.put(Constants.Graph.UUID.getValue(), UUID);
                 parameters.put(Constants.Graph.PROPS.getValue(), relationProperties);
@@ -219,10 +214,9 @@ public class GraphDao implements IGraphDao {
                 result.consume();
                 count = records.get(0).get("count(*)").asInt();
                 logger.info("{} nodes count.", count);
-
+                transaction.success();
             } catch (ClientException e) {
                 throw new GraphException(ErrorCode.GRAPH_TRANSACTIONAL_ERROR.name(), e.getMessage());
-
             }
         } catch (SessionExpiredException se) {
             throw new GraphException(ErrorCode.GRAPH_SESSION_EXPIRED_ERROR.name(), se.getMessage());
@@ -275,10 +269,7 @@ public class GraphDao implements IGraphDao {
     public List<Node> getNeighbours(String UUID, Map<String, String> relationProperties, Constants.DIRECTION direction,
                                     int level, int offset, int limit, List<String> attributes) {
         try (Session session = neo4jDriver.session()) {
-            TransactionConfig txCfg = TransactionConfig.builder()
-                .withTimeout(java.time.Duration.ofSeconds(transactionTimeout))
-                .build();
-            Transaction transaction = session.beginTransaction(txCfg);
+            Transaction transaction = session.beginTransaction();
             try {
                 if (level == 0)
                     throw new GraphException(ErrorCode.RECORD_NOT_FOUND_ERROR.name(), "Oth level have no neighbours ");
@@ -355,17 +346,13 @@ public class GraphDao implements IGraphDao {
         params.put(Constants.TO_USER, toUser);
     
         try (Session session = neo4jDriver.session(AccessMode.READ)) {
-            TransactionConfig txCfg = TransactionConfig.builder()
-                .withTimeout(java.time.Duration.ofSeconds(5))
-                .build();
-    
             Record rec = session.readTransaction(tx -> {
                 StatementResult rs = tx.run(query, params);
                 if (!rs.hasNext()) return null;
                 Record r = rs.next();
                 rs.consume();
                 return r;
-            }, txCfg);
+            });
     
             if (rec != null) {
                 relationshipProps.put(Constants.STATUS,
@@ -424,16 +411,14 @@ public class GraphDao implements IGraphDao {
      * @return A list of records containing recommendation data.
      */
     private List<Record> fetchRecommendationBasedOnOrgAndDesignation(String userId, Map<String, Object> request, Session session) {
-        TransactionConfig txCfg = TransactionConfig.builder()
-                .withTimeout(java.time.Duration.ofSeconds(transactionTimeout))
-                .build();
-        try (Transaction transaction = session.beginTransaction(txCfg)) {
+        try (Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
             parameters.put(Constants.SIZE, request.get(Constants.SIZE));
             parameters.put(Constants.OFFSET, request.get(Constants.OFFSET));
             Statement statement = getStatementForRecommendationFromSameOrg(parameters);
             StatementResult result = transaction.run(statement);
+            transaction.success();
             return result.list();
         } catch (Exception e) {
             logger.error("Error finding recommendations for user {}: {}", userId, e.getMessage());
@@ -496,6 +481,7 @@ public class GraphDao implements IGraphDao {
                 logger.info("Recommendations for user {} fetched successfully. Found {} recommendations",
                         userId, recommendationList.size());
             }
+            transaction.success();
             return recommendationList;
         }
     }
@@ -524,10 +510,7 @@ public class GraphDao implements IGraphDao {
         Map<String, String> blockedUsersData;
         List<Map<String, String>> blockedUsersList = null;
         try (Session session = neo4jDriver.session()) {
-            TransactionConfig txCfg = TransactionConfig.builder()
-                .withTimeout(java.time.Duration.ofSeconds(transactionTimeout))
-                .build();
-        try (Transaction transaction = session.beginTransaction(txCfg)) {
+        try (Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
             int size = (Integer) request.get(Constants.SIZE);
@@ -555,6 +538,7 @@ public class GraphDao implements IGraphDao {
                 logger.info("Blocked users for user {} fetched successfully. Found {} blocked users",
                         userId, blockedUsersList.size());
             }
+            transaction.success();
         } catch (Exception e) {
             logger.error("Error finding blocked users for user {}: {}", userId, e.getMessage());
         }
@@ -585,10 +569,7 @@ public class GraphDao implements IGraphDao {
     public Map<String, Integer> getConnectionsCountByStatus(String userId, String status, Constants.DIRECTION direction) {
         Map<String, Integer> resultMap = new HashMap<>();
         try (Session session = neo4jDriver.session()) {
-            TransactionConfig txCfg = TransactionConfig.builder()
-                .withTimeout(java.time.Duration.ofSeconds(transactionTimeout))
-                .build();
-        try (Transaction transaction = session.beginTransaction(txCfg)) {
+        try (Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
             parameters.put(Constants.STATUS, status);
@@ -610,6 +591,7 @@ public class GraphDao implements IGraphDao {
             result.consume();
             int count = connectionCountRecord.get(Constants.COUNT).asInt();
             resultMap.put(Constants.COUNT, count);
+            transaction.success();
         } catch (Exception e) {
             logger.error(String.format("Error fetching connections count by status for user %s: %s", userId, e));
             resultMap.put(Constants.COUNT, 0);
@@ -627,10 +609,7 @@ public class GraphDao implements IGraphDao {
     @Override
     public Integer getCountForRecommendedUsers(String userId) {
         try (Session session = neo4jDriver.session()) {
-            TransactionConfig txCfg = TransactionConfig.builder()
-                .withTimeout(java.time.Duration.ofSeconds(transactionTimeout))
-                .build();
-        try (Transaction transaction = session.beginTransaction(txCfg)) {
+        try (Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
             String countQuery =connectionProperties.getRecommendedUsersCountQuery();
@@ -639,6 +618,7 @@ public class GraphDao implements IGraphDao {
             Record recommendUsersRecord = result.single();
             result.consume();
             Value countValue = recommendUsersRecord.get(Constants.TOTAL_COUNT);
+            transaction.success();
             return countValue.isNull() ? 0 : countValue.asInt();
         } catch (Exception e) {
             logger.error(String.format("Error fetching connections count for recommended user %s: %s", userId, e));
@@ -656,10 +636,7 @@ public class GraphDao implements IGraphDao {
     @Override
     public Integer getCountForRecommendedMentors(String userId) {
         try (Session session = neo4jDriver.session()) {
-            TransactionConfig txCfg = TransactionConfig.builder()
-                .withTimeout(java.time.Duration.ofSeconds(transactionTimeout))
-                .build();
-        try (Transaction transaction = session.beginTransaction(txCfg)) {
+        try (Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
             String countQuery =connectionProperties.getRecommendedMentorsCountQuery();
@@ -668,6 +645,7 @@ public class GraphDao implements IGraphDao {
             Record mentorRecommenedRecord = result.single();
             result.consume();
             Value countValue = mentorRecommenedRecord.get(Constants.TOTAL_COUNT);
+            transaction.success();
             return countValue.isNull() ? 0 : countValue.asInt();
         }catch (Exception e) {
             logger.error(String.format("Error fetching connections count for recommended mentors %s: %s", userId, e));
@@ -693,10 +671,7 @@ public class GraphDao implements IGraphDao {
         params.put(Constants.STATUS_VALUE, statusValue);
         List<Map<String, Object>> facetsList;
         try (Session session = neo4jDriver.session()) {
-            TransactionConfig txCfg = TransactionConfig.builder()
-                .withTimeout(java.time.Duration.ofSeconds(transactionTimeout))
-                .build();
-        try (Transaction transaction = session.beginTransaction(txCfg)) {
+        try (Transaction transaction = session.beginTransaction()) {
             Statement statement = new Statement(query, params);
             StatementResult result = transaction.run(statement);
             List<Record> totalCounBasedOnStatusRecordList = result.list();
@@ -712,6 +687,7 @@ public class GraphDao implements IGraphDao {
             facetsMap.put(Constants.NAME, facetsAttribute);
             facetsMap.put(Constants.VALUES, resultList);
             facetsList.add(facetsMap);
+            transaction.success();
             return facetsList;
         } catch (Exception e) {
             logger.error(String.format("Error fetching connections count for recommended mentors %s: %s", userId, e));
