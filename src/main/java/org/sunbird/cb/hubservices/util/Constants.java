@@ -128,7 +128,12 @@ public class Constants {
 	public static final String NEO4J_HOST_URL = "neo4j.url";
 	public static final String NEO4J_USER_NAME = "neo4j.username";
 	public static final String NEO4J_PASSWORD = "neo4j.password";
-	public static final String NEO$J_TIMEOUT = "neo.timeout";
+	public static final String NEO4J_TIMEOUT = "neo.timeout";
+	public static final String NEO4J_MAX_POOL_SIZE = "neo4j.max.pool.size";
+	public static final String NEO4J_CONNECTION_ACQUISITION_TIMEOUT = "neo4j.connection.acquisition.timeout";
+	public static final String NEO4J_CONNECTION_TIMEOUT = "neo4j.connection.timeout";
+	public static final String NEO4J_CONNECTION_LIVENESS_CHECK_TIMEOUT = "neo4j.connection.liveness.check.timeout";
+	public static final String NEO4J_TRANSACTION_TIMEOUT = "neo4j.transaction.timeout";
 	public static final String TOTAL_COUNT = "totalCount";
 	public static final String PROFILE_DETAILS = "profiledetails";
 	public static final String PROFESSIONAL_DETAILS = "professionalDetails";

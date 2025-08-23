@@ -1,6 +1,7 @@
 
 package org.sunbird.cb.hubservices.config;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.driver.v1.AuthTokens;
@@ -25,18 +26,37 @@ public class Neo4jConfig {
 	@Bean
 	public Driver Neo4jDriver() {
 		try {
+			String uri = PropertiesCache.getInstance().getProperty(Constants.NEO4J_HOST_URL);
+			String user = PropertiesCache.getInstance().getProperty(Constants.NEO4J_USER_NAME);
+			String pass = PropertiesCache.getInstance().getProperty(Constants.NEO4J_PASSWORD);
+			int maxPoolSize = Optional
+					.ofNullable(PropertiesCache.getInstance().getProperty(Constants.NEO4J_MAX_POOL_SIZE))
+					.map(Integer::parseInt)
+					.orElse(150);
+			int connectionAcquisitionTimeout = Optional.ofNullable(
+					PropertiesCache.getInstance().getProperty(Constants.NEO4J_CONNECTION_ACQUISITION_TIMEOUT))
+					.map(Integer::parseInt)
+					.orElse(90);
+			int connectionTimeout = Optional
+					.ofNullable(PropertiesCache.getInstance().getProperty(Constants.NEO4J_CONNECTION_TIMEOUT))
+					.map(Integer::parseInt)
+					.orElse(5);
+			int connectionLivenessCheckTimeout = Optional
+					.ofNullable(PropertiesCache.getInstance()
+							.getProperty(Constants.NEO4J_CONNECTION_LIVENESS_CHECK_TIMEOUT))
+					.map(Integer::parseInt)
+					.orElse(30);
+			Config config = Config.build()
+					.withMaxConnectionPoolSize(maxPoolSize)
+					.withConnectionAcquisitionTimeout(connectionAcquisitionTimeout, TimeUnit.SECONDS)
+					.withConnectionTimeout(connectionTimeout, TimeUnit.SECONDS)
+					.withConnectionLivenessCheckTimeout(connectionLivenessCheckTimeout, TimeUnit.SECONDS)
+					.toConfig();
 			if (Boolean.parseBoolean(PropertiesCache.getInstance().getProperty(Constants.NEO4J_AUTH_ENABLED))) {
-				return GraphDatabase.driver(PropertiesCache.getInstance().getProperty(Constants.NEO4J_HOST_URL),
-						AuthTokens.basic(PropertiesCache.getInstance().getProperty(Constants.NEO4J_USER_NAME),
-								PropertiesCache.getInstance().getProperty(Constants.NEO4J_PASSWORD)));
+				return GraphDatabase.driver(uri, AuthTokens.basic(user, pass), config);
 			} else {
-				Integer timeout = Integer.parseInt(PropertiesCache.getInstance().getProperty(Constants.NEO$J_TIMEOUT));
-				Config config = Config.build()
-						.withConnectionTimeout(timeout, TimeUnit.SECONDS)
-						.withConnectionLivenessCheckTimeout(10L, TimeUnit.SECONDS).toConfig();
-				logger.info("Using timeout config of : " + timeout);
-				return GraphDatabase.driver(PropertiesCache.getInstance().getProperty(Constants.NEO4J_HOST_URL),
-						config);
+				// If authentication is not enabled, use the default driver without credentials
+				return GraphDatabase.driver(uri, config);
 			}
 		} catch (AuthenticationException | ServiceUnavailableException e) {
 			logger.error("Failed to initialize Neo4J connection. Exception: ", e);
