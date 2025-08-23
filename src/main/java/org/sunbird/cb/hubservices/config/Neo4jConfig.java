@@ -1,6 +1,7 @@
 
 package org.sunbird.cb.hubservices.config;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.driver.v1.AuthTokens;
@@ -28,15 +29,27 @@ public class Neo4jConfig {
 			String uri = PropertiesCache.getInstance().getProperty(Constants.NEO4J_HOST_URL);
 			String user = PropertiesCache.getInstance().getProperty(Constants.NEO4J_USER_NAME);
 			String pass = PropertiesCache.getInstance().getProperty(Constants.NEO4J_PASSWORD);
-			int maxPoolSize = Integer.parseInt(PropertiesCache.getInstance().getProperty(Constants.NEO4J_MAX_POOL_SIZE), 150);
-			int connectionAcquisitionTimeout = Integer.parseInt(PropertiesCache.getInstance().getProperty(Constants.NEO4J_CONNECTION_ACQUISITION_TIMEOUT), 90);
-			int connectionTimeout = Integer.parseInt(PropertiesCache.getInstance().getProperty(Constants.NEO4J_CONNECTION_TIMEOUT), 5);
-			int connectionLivenessCheckTimeout = Integer.parseInt(PropertiesCache.getInstance().getProperty(Constants.NEO4J_CONNECTION_LIVENESS_CHECK_TIMEOUT), 30);
-
+			int maxPoolSize = Optional
+					.ofNullable(PropertiesCache.getInstance().getProperty(Constants.NEO4J_MAX_POOL_SIZE))
+					.map(Integer::parseInt)
+					.orElse(150);
+			int connectionAcquisitionTimeout = Optional.ofNullable(
+					PropertiesCache.getInstance().getProperty(Constants.NEO4J_CONNECTION_ACQUISITION_TIMEOUT))
+					.map(Integer::parseInt)
+					.orElse(90);
+			int connectionTimeout = Optional
+					.ofNullable(PropertiesCache.getInstance().getProperty(Constants.NEO4J_CONNECTION_TIMEOUT))
+					.map(Integer::parseInt)
+					.orElse(5);
+			int connectionLivenessCheckTimeout = Optional
+					.ofNullable(PropertiesCache.getInstance()
+							.getProperty(Constants.NEO4J_CONNECTION_LIVENESS_CHECK_TIMEOUT))
+					.map(Integer::parseInt)
+					.orElse(30);
 			Config config = Config.build()
 					.withMaxConnectionPoolSize(maxPoolSize)
 					.withConnectionAcquisitionTimeout(connectionAcquisitionTimeout, TimeUnit.SECONDS)
-					.withConnectionTimeout(connectionTimeout, TimeUnit.SECONDS) 
+					.withConnectionTimeout(connectionTimeout, TimeUnit.SECONDS)
 					.withConnectionLivenessCheckTimeout(connectionLivenessCheckTimeout, TimeUnit.SECONDS)
 					.toConfig();
 			if (Boolean.parseBoolean(PropertiesCache.getInstance().getProperty(Constants.NEO4J_AUTH_ENABLED))) {
