@@ -1,6 +1,6 @@
 package org.sunbird.cb.hubservices.cassandra;
 
-import com.datastax.driver.core.Session;
+import com.datastax.oss.driver.api.core.CqlSession;
 
 public interface CassandraConnectionManager {
 	/**
@@ -10,5 +10,5 @@ public interface CassandraConnectionManager {
 	 * @param keyspaceName
 	 * @return Session
 	 */
-	Session getSession(String keyspaceName);
+    CqlSession getSession(String keyspaceName);
 }

@@ -6,12 +6,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
-
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
 import org.sunbird.cb.hubservices.util.Constants;
-
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
 
 public final class CassandraUtil {
 
@@ -75,8 +72,12 @@ public final class CassandraUtil {
 		return responseList;
 	}
 
-	public static Map<String, String> fetchColumnsMapping(ResultSet results) {
-		return results.getColumnDefinitions().asList().stream()
-				.collect(Collectors.toMap(d -> propertiesCache.readProperty(d.getName()).trim(), d -> d.getName()));
-	}
+    public static Map<String, String> fetchColumnsMapping(ResultSet results) {
+        Map<String, String> columnsMapping = new HashMap<>();
+        results.getColumnDefinitions().forEach(column -> {
+            String property = propertiesCache.readProperty(column.getName().asInternal()).trim();
+            columnsMapping.put(property, column.getName().asInternal());
+        });
+        return columnsMapping;
+    }
 }
