@@ -1,4 +1,4 @@
-FROM openjdk:11
+FROM openjdk:17-slim
 COPY hub-services-0.0.1-SNAPSHOT.jar /opt/
 EXPOSE 3013
 CMD ["/bin/bash", "-c", "java -XX:+PrintFlagsFinal $JAVA_OPTIONS -XX:+UnlockExperimentalVMOptions -jar /opt/hub-services-0.0.1-SNAPSHOT.jar"]
