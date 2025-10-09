@@ -1,8 +1,10 @@
 package org.sunbird.cb.hubservices;
 
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.data.cassandra.CassandraDataAutoConfiguration;
@@ -29,15 +31,20 @@ public class HubServiceApplication {
         return new RestTemplate(getClientHttpRequestFactory());
     }
 
+
     private ClientHttpRequestFactory getClientHttpRequestFactory() {
         int timeout = connectionProperties.getClientHttpRequestFactoryTimeout();
-        RequestConfig config = RequestConfig.custom().setConnectTimeout(timeout).setConnectionRequestTimeout(timeout)
-                .setSocketTimeout(timeout).build();
-        CloseableHttpClient client = HttpClientBuilder.create().setMaxConnTotal(connectionProperties.getClientHttpRequestFactoryPoolingMaxTotalConnections()).setMaxConnPerRoute(connectionProperties.getClientHttpRequestFactoryPoolingMaxTotalConnections())
-                .setDefaultRequestConfig(config).build();
-        HttpComponentsClientHttpRequestFactory cRequestFactory = new HttpComponentsClientHttpRequestFactory(client);
-        cRequestFactory.setReadTimeout(timeout);
-        return cRequestFactory;
+        RequestConfig config = RequestConfig.custom()
+                .setResponseTimeout(Timeout.ofMilliseconds(timeout))
+                .build();
+        PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager();
+        cm.setMaxTotal(connectionProperties.getMaxTotalConnections());
+        cm.setDefaultMaxPerRoute(connectionProperties.getMaxConnectionsPerRoute());
+        CloseableHttpClient client = HttpClients.custom()
+                .setDefaultRequestConfig(config)
+                .setConnectionManager(cm)
+                .build();
+        return new HttpComponentsClientHttpRequestFactory(client);
     }
 
 	public static void main(String[] args) {

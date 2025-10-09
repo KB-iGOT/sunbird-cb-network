@@ -1,9 +1,9 @@
 package org.sunbird.cb.hubservices.model;
 
-import java.util.List;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
+import java.util.List;
 
 public class Search {
 

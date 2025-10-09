@@ -161,6 +161,12 @@ public class ConnectionProperties {
 	@Value("${basic.profile.fields}")
     private String basicProfileFields;
 
+    @Value("${http.pooling.client.cm.max.total.connections}")
+    private int maxTotalConnections;
+
+    @Value("${http.pooling.client.cm.default.max.per.route}")
+    private int maxConnectionsPerRoute;
+
 	public List<String> getBasicProfileFields() {
         return Arrays.asList(basicProfileFields.split(","));
     }

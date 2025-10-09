@@ -4,12 +4,10 @@ package org.sunbird.cb.hubservices.config;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.driver.v1.AuthTokens;
-import org.neo4j.driver.v1.Config;
-import org.neo4j.driver.v1.Driver;
-import org.neo4j.driver.v1.GraphDatabase;
-import org.neo4j.driver.v1.exceptions.AuthenticationException;
-import org.neo4j.driver.v1.exceptions.ServiceUnavailableException;
+import org.neo4j.driver.AuthTokens;
+import org.neo4j.driver.Config;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.GraphDatabase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -17,6 +15,8 @@ import org.springframework.context.annotation.Configuration;
 import org.sunbird.cb.hubservices.exception.GraphException;
 import org.sunbird.cb.hubservices.util.Constants;
 import org.sunbird.cb.hubservices.util.PropertiesCache;
+import org.neo4j.driver.exceptions.AuthenticationException;
+import org.neo4j.driver.exceptions.ServiceUnavailableException;
 
 @Configuration
 public class Neo4jConfig {
@@ -46,12 +46,12 @@ public class Neo4jConfig {
 							.getProperty(Constants.NEO4J_CONNECTION_LIVENESS_CHECK_TIMEOUT))
 					.map(Integer::parseInt)
 					.orElse(30);
-			Config config = Config.build()
+			Config config = Config.builder()
 					.withMaxConnectionPoolSize(maxPoolSize)
 					.withConnectionAcquisitionTimeout(connectionAcquisitionTimeout, TimeUnit.SECONDS)
 					.withConnectionTimeout(connectionTimeout, TimeUnit.SECONDS)
 					.withConnectionLivenessCheckTimeout(connectionLivenessCheckTimeout, TimeUnit.SECONDS)
-					.toConfig();
+					.build();
 			if (Boolean.parseBoolean(PropertiesCache.getInstance().getProperty(Constants.NEO4J_AUTH_ENABLED))) {
 				return GraphDatabase.driver(uri, AuthTokens.basic(user, pass), config);
 			} else {

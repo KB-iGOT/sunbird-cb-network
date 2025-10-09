@@ -202,33 +202,6 @@ public class ProfileUtils {
 		return Collections.emptyMap();
 	}
 
-	public ResponseEntity updateProfile(String uuid, Map<String, Object> profileObj) {
-		StringBuilder builder = new StringBuilder();
-		Map<String, Object> requestObject = new HashMap<>();
-		Map<String, Object> requestWrapper = new HashMap<>();
-		requestWrapper.put(Profile.USER_ID, uuid);
-		requestWrapper.put(Profile.PROFILE_DETAILS, profileObj);
-		requestObject.put(Profile.REQUEST, requestWrapper);
-		RestTemplate restTemplate = new RestTemplate();
-
-		HttpClient httpClient = HttpClientBuilder.create().build();
-		restTemplate.setRequestFactory(new HttpComponentsClientHttpRequestFactory(httpClient));
-		HttpHeaders reqHeaders = new HttpHeaders();
-		reqHeaders.setContentType(MediaType.APPLICATION_JSON);
-
-		HttpEntity<Object> requestEntity = new HttpEntity<>(requestObject, reqHeaders);
-		builder.append(connectionProperties.getLearnerServiceHost())
-				.append(connectionProperties.getUserUpdateEndPoint());
-		ResponseEntity responseEntity = restTemplate.exchange(builder.toString(), HttpMethod.PATCH, requestEntity,
-				Map.class);
-		try {
-			ObjectMapper mapper = new ObjectMapper();
-			logger.info("profile update response :: {}", mapper.writeValueAsString(responseEntity.getBody()));
-		} catch (JsonProcessingException e) {
-			logger.error("error:", e);
-		}
-		return new ResponseEntity<>(responseEntity.getBody(), responseEntity.getStatusCode());
-	}
 
 	private Map<String, Object> getSearchObject(List<String> userIds) {
 		Map<String, Object> request = new HashMap<>();
