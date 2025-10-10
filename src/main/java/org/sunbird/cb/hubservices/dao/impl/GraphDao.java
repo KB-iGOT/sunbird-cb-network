@@ -340,9 +340,7 @@ public class GraphDao implements IGraphDao {
             Record rec = session.readTransaction(tx -> {
                 Result rs = tx.run(query, params);
                 if (!rs.hasNext()) return null;
-                Record r = rs.next();
-                rs.consume();
-                return r;
+                return rs.next();
             });
     
             if (rec != null) {
@@ -408,9 +406,9 @@ public class GraphDao implements IGraphDao {
             parameters.put(Constants.SIZE, request.get(Constants.SIZE));
             parameters.put(Constants.OFFSET, request.get(Constants.OFFSET));
             Query statement = getStatementForRecommendationFromSameOrg(parameters);
-            Result result = transaction.run(statement);
+            List<Record> records= transaction.run(statement).list();
             transaction.commit();
-            return result.list();
+            return records;
         } catch (Exception e) {
             logger.error("Error finding recommendations for user {}: {}", userId, e.getMessage());
         }
@@ -438,7 +436,7 @@ public class GraphDao implements IGraphDao {
     @Override
     public List<Map<String, String>> findRecommendationForMentors(String userId, Map<String, Object> request) {
         Map<String, String> recommendationData;
-        List<Map<String, String>> recommendationList = null;
+        List<Map<String, String>> recommendationList = new ArrayList<>();
         try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
@@ -452,7 +450,6 @@ public class GraphDao implements IGraphDao {
             Query statement = getStatementForRecommendedMentorsInSameOrg(parameters);
             Result result = transaction.run(statement);
             List<Record> recordsForRecommendedMentors = result.list();
-            result.consume();
             if (!CollectionUtils.isEmpty(recordsForRecommendedMentors)) {
                 recommendationList = new ArrayList<>();
                 for (Record recommendMentorRecord : recordsForRecommendedMentors) {
@@ -499,7 +496,7 @@ public class GraphDao implements IGraphDao {
     @Override
     public List<Map<String, String>> findBlockedUsers(String userId, Map<String, Object> request) {
         Map<String, String> blockedUsersData;
-        List<Map<String, String>> blockedUsersList = null;
+        List<Map<String, String>> blockedUsersList = new ArrayList<>();
         try (Session session = neo4jDriver.session(); Transaction transaction = session.beginTransaction()) {
             Map<String, Object> parameters = new HashMap<>();
             parameters.put(Constants.USER_ID, userId);
@@ -513,7 +510,6 @@ public class GraphDao implements IGraphDao {
             Query statement = getStatementForBlockedUsers(parameters);
             Result result = transaction.run(statement);
             List<Record> recordsForBlockedUsers = result.list();
-            result.consume();
             if (!CollectionUtils.isEmpty(recordsForBlockedUsers)) {
                 blockedUsersList = new ArrayList<>();
                 for (Record blockedUserRecord : recordsForBlockedUsers) {
@@ -575,9 +571,12 @@ public class GraphDao implements IGraphDao {
             }
             Query statement = new Query(countQuery.toString(), parameters);
             Result result = transaction.run(statement);
-            Record connectionCountRecord = result.single();
-            result.consume();
-            int count = connectionCountRecord.get(Constants.COUNT).asInt();
+            int count = 0;
+            if (result.hasNext()) {
+                Record connectCountRecord = result.next();
+                Value countValue = connectCountRecord.get(Constants.COUNT);
+                count = countValue.isNull() ? 0 : countValue.asInt();
+            }
             resultMap.put(Constants.COUNT, count);
             transaction.commit();
         } catch (Exception e) {
@@ -601,8 +600,11 @@ public class GraphDao implements IGraphDao {
             String countQuery =connectionProperties.getRecommendedUsersCountQuery();
             Query statement = new Query(countQuery, parameters);
             Result result = transaction.run(statement);
-            Record recommendUsersRecord = result.single();
-            result.consume();
+            if (!result.hasNext()) {
+                transaction.commit();
+                return 0;
+            }
+            Record recommendUsersRecord = result.next();
             Value countValue = recommendUsersRecord.get(Constants.TOTAL_COUNT);
             transaction.commit();
             return countValue.isNull() ? 0 : countValue.asInt();
@@ -626,8 +628,11 @@ public class GraphDao implements IGraphDao {
             String countQuery =connectionProperties.getRecommendedMentorsCountQuery();
             Query statement = new Query(countQuery, parameters);
             Result result = transaction.run(statement);
-            Record mentorRecommenedRecord = result.single();
-            result.consume();
+            if(!result.hasNext()){
+                transaction.commit();
+                return 0;
+            }
+            Record mentorRecommenedRecord = result.next();
             Value countValue = mentorRecommenedRecord.get(Constants.TOTAL_COUNT);
             transaction.commit();
             return countValue.isNull() ? 0 : countValue.asInt();
@@ -657,7 +662,6 @@ public class GraphDao implements IGraphDao {
             Query statement = new Query(query, params);
             Result result = transaction.run(statement);
             List<Record> totalCounBasedOnStatusRecordList = result.list();
-            result.consume();
             for (Record totalCounBasedOnStatusRecord : totalCounBasedOnStatusRecordList) {
                 Map<String, Object> map = new HashMap<>();
                 map.put(Constants.NAME, totalCounBasedOnStatusRecord.get(Constants.STATUS).asString());
