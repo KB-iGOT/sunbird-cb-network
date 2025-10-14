@@ -103,7 +103,6 @@ public class GraphDao implements IGraphDao {
                 if (logger.isDebugEnabled())
                     logger.debug("updating user relation with fromUUID {} and toUUID {} ", nodeFrom.getUserId(), nodeTo.getUserId());
                 isUpserted = updateRelationshipBetweenTwoNodes(nodeFrom, nodeTo, statement, result, transaction, recordSize, relationProperties);
-                transaction.commit();
             } else {
                 String query = "MATCH (n:" + label + ")-[r:connect]->(n1:" + label +
                         ") WHERE n.userId = $fromUUID AND n1.userId = $toUUID " + "RETURN n,n1";
