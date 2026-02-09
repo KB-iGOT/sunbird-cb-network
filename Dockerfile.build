@@ -1,4 +1,4 @@
-FROM openjdk:17.0.1-jdk-slim
+FROM maven:3.9-eclipse-temurin-8
 
 RUN apt update && apt install maven -y && apt install zip -y
 
