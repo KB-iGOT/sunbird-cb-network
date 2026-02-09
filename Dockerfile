@@ -1,4 +1,4 @@
-FROM maven:3.9-eclipse-temurin-8
+FROM eclipse-temurin:8-jdk-jammy
 
 RUN useradd -ms /bin/bash appuser
 
