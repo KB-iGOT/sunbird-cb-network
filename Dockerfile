@@ -14,11 +14,9 @@ RUN apt-get update \
         xz-utils
 
 COPY hub-services-0.0.1-SNAPSHOT.jar /opt/
-EXPOSE 3013
 
 RUN chown -R appuser:appuser /opt
 USER appuser
 WORKDIR /opt
 
-CMD ["/bin/bash", "-c", "java -XX:+PrintFlagsFinal $JAVA_OPTIONS -XX:+UnlockExperimentalVMOptions -jar /opt/hub-services-0.0.1-SNAPSHOT.jar"]
-
+CMD ["/bin/bash", "-c", "java -XX:+PrintFlagsFinal $JAVA_OPTIONS -XX:+UnlockExperimentalVMOptions -jar /opt/cb-comment-service-0.0.1-SNAPSHOT.jar"]
