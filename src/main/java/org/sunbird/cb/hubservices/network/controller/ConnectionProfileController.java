@@ -61,11 +61,10 @@ public class ConnectionProfileController {
 	@GetMapping(Constants.FETCH_ESTABLISHED)
 	public ResponseEntity<Response> findEstablished(@RequestHeader(required = false) String org, @RequestHeader String userId,
 			@RequestParam(defaultValue = "50", required = false, name = "pageSize") int pageSize,
-			@RequestParam(defaultValue = "0", required = false, name = "pageNo") int pageNo) {
-
-		Response response = profileService.findProfilesV2(userId, pageNo, pageSize);
-		return new ResponseEntity<>(response, HttpStatus.OK);
-
+			@RequestParam(defaultValue = "0", required = false, name = "pageNo") int pageNo,@RequestHeader(value = Constants.X_AUTH_TOKEN) String authToken) {
+		Response response = profileService.findProfilesV2(userId, pageNo, pageSize, authToken);
+		HttpStatus httpStatus = (HttpStatus) response.get(Constants.ResponseStatus.STATUS);
+		return new ResponseEntity<>(response, httpStatus != null ? httpStatus : HttpStatus.OK);
 	}
 
 	@GetMapping(value = "/relationship/{userId}")

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.common.recycler.Recycler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.StringUtils;
 import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
 import org.sunbird.cb.hubservices.cassandra.CassandraOperation;
 import org.sunbird.cb.hubservices.common.auth.AccessTokenValidator;
@@ -78,7 +78,21 @@ public class ProfileService implements IProfileService {
 	}
 
 	@Override
-	public Response findProfilesV2(String userId, int offset, int limit) {
+	public Response findProfilesV2(String userId, int offset, int limit, String authToken) {
+		Response response = new Response();
+		String tokenUserId = accessTokenValidator.fetchUserIdFromAccessToken(authToken);
+		if (StringUtils.isEmpty(tokenUserId)) {
+			logger.warn("ProfileService:findProfilesV2: invalid or expired auth token.");
+			response.put(Constants.ResponseStatus.MESSAGE, Constants.ACCESS_TOKEN_IS_EXPIRED);
+			response.put(Constants.ResponseStatus.STATUS, HttpStatus.UNAUTHORIZED);
+			return response;
+		}
+		if (!tokenUserId.equals(userId)) {
+			logger.warn("ProfileService:findProfilesV2: userId header '{}' does not match token subject '{}'.", userId, tokenUserId);
+			response.put(Constants.ResponseStatus.MESSAGE, "Access denied: userId does not match authenticated user.");
+			response.put(Constants.ResponseStatus.STATUS, HttpStatus.FORBIDDEN);
+			return response;
+		}
 		return connectionService.findAllConnectionsIdsByStatusV2(userId, Constants.Status.APPROVED, offset, limit);
 
 	}
