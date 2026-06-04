@@ -103,17 +103,17 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         Response response = new Response();
         String fromUserId = request.getUserIdFrom();
         String toUserId = request.getUserIdTo();
-        String requestedStatus = request.getStatus();
+        String status = request.getStatus();
 
         Map<String, String> currentRelationship =
                 connectionService.getRelationshipBetweenUsers(fromUserId, toUserId);
         String currentStatus = (currentRelationship != null)
                 ? currentRelationship.get(Constants.Graph.STATUS.getValue())
                 : null;
-        String validationError = validateStatusTransition(currentStatus, requestedStatus);
+        String validationError = validateStatusTransition(currentStatus, status);
         if (validationError != null) {
             logger.warn("updateUserConnection: invalid transition '{}' -> '{}' for fromUserId={} toUserId={}",
-                    currentStatus, requestedStatus, fromUserId, toUserId);
+                    currentStatus, status, fromUserId, toUserId);
             response.put(Constants.ResponseStatus.MESSAGE, validationError);
             response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
             return response;
@@ -121,17 +121,17 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         request.setUpdatedAt(new Date().toString());
         response = connectionService.upsert(request, Constants.UPDATE_OPERATION);
 
-        if (Constants.APPROVED.equalsIgnoreCase(requestedStatus)) {
+        if (Constants.APPROVED.equalsIgnoreCase(status)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.APPROVED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
-        } else if (Constants.REJECTED.equalsIgnoreCase(requestedStatus)) {
+        } else if (Constants.REJECTED.equalsIgnoreCase(status)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.REJECTED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
-        } else if (Constants.BLOCKED.equalsIgnoreCase(requestedStatus)) {
+        } else if (Constants.BLOCKED.equalsIgnoreCase(status)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.BLOCKED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
-        } else if (Constants.WITHDRAWN.equalsIgnoreCase(requestedStatus)) {
+        } else if (Constants.WITHDRAWN.equalsIgnoreCase(status)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.WITHDRAWN_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
-        } else if (Constants.UNBLOCKED.equalsIgnoreCase(requestedStatus)) {
+        } else if (Constants.UNBLOCKED.equalsIgnoreCase(status)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.UNBLOCKED_OP_KEYS_TO_CLEAR, fromUserId);
-        } else if (Constants.REMOVED.equalsIgnoreCase(requestedStatus)) {
+        } else if (Constants.REMOVED.equalsIgnoreCase(status)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.REMOVED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
         }
         redisCacheMgr.deleteKeysByName(RedisCacheMgr.RECOMMENDED_USER_COUNT_KEYS, fromUserId, toUserId);
