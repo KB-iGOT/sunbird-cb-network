@@ -1,7 +1,7 @@
 FROM eclipse-temurin:11-jre
 RUN useradd -ms /bin/bash appuser
 
-COPY /opt/target/hub-services-0.0.1-SNAPSHOT.jar /opt/
+COPY hub-services-0.0.1-SNAPSHOT.jar /opt/
 EXPOSE 3013
 
 RUN chown -R appuser:appuser /opt
