@@ -110,6 +110,14 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         String currentStatus = (currentRelationship != null)
                 ? currentRelationship.get(Constants.Graph.STATUS.getValue())
                 : null;
+        if (StringUtils.isEmpty(currentStatus)) {
+            logger.warn("updateUserConnection: no existing connection found between fromUserId={} toUserId={}",
+                    fromUserId, toUserId);
+            response.put(Constants.ResponseStatus.MESSAGE,
+                    "No existing connection found between the specified users.");
+            response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
         String validationError = validateStatusTransition(currentStatus, status);
         if (validationError != null) {
             logger.warn("updateUserConnection: invalid transition '{}' -> '{}' for fromUserId={} toUserId={}",
