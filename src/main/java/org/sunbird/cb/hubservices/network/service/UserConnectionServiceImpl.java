@@ -15,12 +15,61 @@ import org.sunbird.cb.hubservices.model.SBApiResponse;
 import org.sunbird.cb.hubservices.serviceimpl.ConnectionService;
 import org.sunbird.cb.hubservices.util.Constants;
 
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 public class UserConnectionServiceImpl implements UserConnectionService {
 
     private Logger logger = LoggerFactory.getLogger(UserConnectionServiceImpl.class);
+
+    /**
+     * CWE-840 – Business Logic Errors
+     * Defines which target statuses are considered known/valid for an update request.
+     */
+    private static final Set<String> VALID_UPDATE_STATUSES = new HashSet<>(Arrays.asList(
+            Constants.Status.APPROVED,
+            Constants.Status.REJECTED,
+            Constants.Status.WITHDRAWN,
+            Constants.Status.REMOVED,
+            Constants.Status.BLOCKED,
+            Constants.Status.UNBLOCKED
+    ));
+
+    /**
+     * CWE-840 – Business Logic Errors
+     * Strict server-side state-machine: maps each current (persisted) status to the
+     * set of statuses that are permitted as the next state.
+     *
+     * Allowed transitions:
+     *   PENDING   → APPROVED  (recipient accepts)
+     *   PENDING   → REJECTED  (recipient rejects)
+     *   PENDING   → WITHDRAWN (sender withdraws before approval)
+     *   APPROVED  → REMOVED   (either party removes the connection)
+     *   APPROVED  → BLOCKED   (either party blocks the other)
+     *   BLOCKED   → UNBLOCKED (blocker lifts the block)
+     *
+     * Terminal states with no outgoing transitions: REJECTED, WITHDRAWN, REMOVED, UNBLOCKED.
+     */
+    private static final Map<String, Set<String>> ALLOWED_TRANSITIONS = new HashMap<>();
+    static {
+        ALLOWED_TRANSITIONS.put(Constants.Status.PENDING, new HashSet<>(Arrays.asList(
+                Constants.Status.APPROVED,
+                Constants.Status.REJECTED,
+                Constants.Status.WITHDRAWN
+        )));
+        ALLOWED_TRANSITIONS.put(Constants.Status.APPROVED, new HashSet<>(Arrays.asList(
+                Constants.Status.REMOVED,
+                Constants.Status.BLOCKED
+        )));
+        ALLOWED_TRANSITIONS.put(Constants.Status.BLOCKED, new HashSet<>(Arrays.asList(
+                Constants.Status.UNBLOCKED
+        )));
+    }
 
     @Autowired
     private ConnectionService connectionService;
@@ -100,23 +149,82 @@ public class UserConnectionServiceImpl implements UserConnectionService {
 
 
     public Response updateUserConnection(ConnectionRequest request) {
-        request.setUpdatedAt(new Date().toString());
-        Response response = connectionService.upsert(request, Constants.UPDATE_OPERATION);
-        String status = request.getStatus();
+        Response response = new Response();
         String fromUserId = request.getUserIdFrom();
         String toUserId = request.getUserIdTo();
+        String requestedStatus = request.getStatus();
 
-        if (Constants.APPROVED.equalsIgnoreCase(status)) {
+        // ── CWE-840: Enforce strict server-side state validation ──────────────────
+
+        // 1. Reject requests with missing mandatory fields
+        if (StringUtils.isAnyEmpty(fromUserId, toUserId, requestedStatus)) {
+            logger.warn("updateUserConnection: Rejected – missing required field(s). "
+                    + "fromUserId={} toUserId={} status={}", fromUserId, toUserId, requestedStatus);
+            response.put(Constants.ResponseStatus.MESSAGE,
+                    "userIdFrom, userIdTo and status are required fields.");
+            response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
+        // 2. Reject unknown / arbitrary status values (prevents injection of invented states)
+        if (!VALID_UPDATE_STATUSES.contains(requestedStatus)) {
+            logger.warn("updateUserConnection: Rejected – unrecognised status '{}' supplied by fromUserId={}",
+                    requestedStatus, fromUserId);
+            response.put(Constants.ResponseStatus.MESSAGE,
+                    "Invalid status value: '" + requestedStatus + "'.");
+            response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
+        // 3. Re-read the current persisted state from the graph before approving any action
+        Map<String, String> currentRelationship =
+                connectionService.getRelationshipBetweenUsers(fromUserId, toUserId);
+        String currentStatus = (currentRelationship != null)
+                ? currentRelationship.get(Constants.Graph.STATUS.getValue())
+                : null;
+
+        if (StringUtils.isEmpty(currentStatus)) {
+            logger.warn("updateUserConnection: Rejected – no existing connection found between "
+                    + "fromUserId={} and toUserId={}", fromUserId, toUserId);
+            response.put(Constants.ResponseStatus.MESSAGE,
+                    "No existing connection found between the specified users.");
+            response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
+        // 4. Validate the transition against the allowed state-machine
+        Set<String> allowedNextStates = ALLOWED_TRANSITIONS.get(currentStatus);
+        if (allowedNextStates == null || !allowedNextStates.contains(requestedStatus)) {
+            logger.warn("updateUserConnection: Rejected – illegal state transition '{}' → '{}' "
+                            + "for fromUserId={} toUserId={}",
+                    currentStatus, requestedStatus, fromUserId, toUserId);
+            response.put(Constants.ResponseStatus.MESSAGE,
+                    String.format("State transition from '%s' to '%s' is not permitted.",
+                            currentStatus, requestedStatus));
+            response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
+        // 5. Log every approved state-change for audit / monitoring purposes
+        logger.info("updateUserConnection: State transition approved – '{}' → '{}' "
+                        + "for fromUserId={} toUserId={}",
+                currentStatus, requestedStatus, fromUserId, toUserId);
+
+        // ── Original logic (unchanged) ────────────────────────────────────────────
+        request.setUpdatedAt(new Date().toString());
+        response = connectionService.upsert(request, Constants.UPDATE_OPERATION);
+
+        if (Constants.APPROVED.equalsIgnoreCase(requestedStatus)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.APPROVED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
-        } else if (Constants.REJECTED.equalsIgnoreCase(status)) {
+        } else if (Constants.REJECTED.equalsIgnoreCase(requestedStatus)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.REJECTED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
-        } else if (Constants.BLOCKED.equalsIgnoreCase(status)) {
+        } else if (Constants.BLOCKED.equalsIgnoreCase(requestedStatus)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.BLOCKED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
-        } else if (Constants.WITHDRAWN.equalsIgnoreCase(status)) {
+        } else if (Constants.WITHDRAWN.equalsIgnoreCase(requestedStatus)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.WITHDRAWN_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
-        } else if (Constants.UNBLOCKED.equalsIgnoreCase(status)) {
+        } else if (Constants.UNBLOCKED.equalsIgnoreCase(requestedStatus)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.UNBLOCKED_OP_KEYS_TO_CLEAR, fromUserId);
-        } else if (Constants.REMOVED.equalsIgnoreCase(status)) {
+        } else if (Constants.REMOVED.equalsIgnoreCase(requestedStatus)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.REMOVED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
         }
         redisCacheMgr.deleteKeysByName(RedisCacheMgr.RECOMMENDED_USER_COUNT_KEYS, fromUserId, toUserId);
