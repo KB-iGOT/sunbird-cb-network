@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
 import org.sunbird.cb.hubservices.common.auth.AccessTokenValidator;
@@ -16,6 +17,7 @@ import org.sunbird.cb.hubservices.serviceimpl.ConnectionService;
 import org.sunbird.cb.hubservices.util.Constants;
 
 import java.util.Date;
+import java.util.Map;
 
 @Service
 public class UserConnectionServiceImpl implements UserConnectionService {
@@ -97,14 +99,36 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         }
         return false;
     }
-
-
+    @Override
     public Response updateUserConnection(ConnectionRequest request) {
-        request.setUpdatedAt(new Date().toString());
-        Response response = connectionService.upsert(request, Constants.UPDATE_OPERATION);
-        String status = request.getStatus();
+        Response response = new Response();
         String fromUserId = request.getUserIdFrom();
         String toUserId = request.getUserIdTo();
+        String status = request.getStatus();
+
+        Map<String, String> currentRelationship =
+                connectionService.getRelationshipBetweenUsers(fromUserId, toUserId);
+
+        if (MapUtils.isEmpty(currentRelationship)
+                || StringUtils.isEmpty(currentRelationship.get(Constants.Graph.STATUS.getValue()))) {
+            logger.warn(Constants.Message.NO_CONNECTION_FOUND_LOG, fromUserId, toUserId);
+            response.put(Constants.ResponseStatus.MESSAGE,
+                    Constants.Message.NO_CONNECTION_FOUND);
+            response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
+        String currentStatus = currentRelationship.get(Constants.Graph.STATUS.getValue());
+        String validationError = validateStatusTransition(currentStatus, status);
+        if (StringUtils.isNotEmpty(validationError)) {
+            logger.warn(Constants.Message.INVALID_TRANSITION_LOG,
+                    currentStatus, status, fromUserId, toUserId);
+            response.put(Constants.ResponseStatus.MESSAGE, validationError);
+            response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        request.setUpdatedAt(new Date().toString());
+        response = connectionService.upsert(request, Constants.UPDATE_OPERATION);
 
         if (Constants.APPROVED.equalsIgnoreCase(status)) {
             redisCacheMgr.deleteKeysByName(RedisCacheMgr.APPROVED_OP_KEYS_TO_CLEAR, fromUserId, toUserId);
@@ -121,6 +145,14 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         }
         redisCacheMgr.deleteKeysByName(RedisCacheMgr.RECOMMENDED_USER_COUNT_KEYS, fromUserId, toUserId);
         return response;
+    }
+
+    private String validateStatusTransition(String currentStatus, String requestedStatus) {
+        if (Constants.REJECTED.equalsIgnoreCase(currentStatus)
+                && Constants.APPROVED.equalsIgnoreCase(requestedStatus)) {
+            return Constants.Message.REJECTED_REQUEST_CANNOT_BE_APPROVED;
+        }
+        return null; // valid transition
     }
 
     @Override

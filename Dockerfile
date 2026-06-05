@@ -1,4 +1,4 @@
-FROM openjdk:17.0.1-jdk-slim
+FROM eclipse-temurin:11-jre
 RUN useradd -ms /bin/bash appuser
 
 COPY hub-services-0.0.1-SNAPSHOT.jar /opt/
