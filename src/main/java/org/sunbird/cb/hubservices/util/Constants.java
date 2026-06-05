@@ -227,6 +227,10 @@ public class Constants {
 		public static final String ROOT_ORG_INVALID = "rootOrg cant be null or empty";
 		public static final String SENT_NOTIFICATION_ERROR = "Notification event send error occurred: {}";
 		public static final String SENT_NOTIFICATION_SUCCESS = "Notification event send : {}";
+		public static final String REJECTED_REQUEST_CANNOT_BE_APPROVED = "Rejected requests cannot be approved";
+		public static final String NO_CONNECTION_FOUND = "No existing connection found between the specified users.";
+		public static final String NO_CONNECTION_FOUND_LOG = "updateUserConnection: no existing connection found between fromUserId={} toUserId={}";
+		public static final String INVALID_TRANSITION_LOG = "updateUserConnection: invalid transition '{}' -> '{}' for fromUserId={} toUserId={}";
 	}
 
 	public static class ResponseStatus {
