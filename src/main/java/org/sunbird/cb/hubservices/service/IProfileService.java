@@ -15,7 +15,7 @@ public interface IProfileService {
 
 	public Response findCommonProfileV2(String userId, int offset, int limit);
 
-	public Response findProfilesV2(String userId, int offset, int limit);
+	public Response findProfilesV2(String userId, int offset, int limit, String authToken);
 
 	public Response findProfileRequestedV2(String userId, int offset, int limit, Constants.DIRECTION direction);
 
