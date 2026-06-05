@@ -1,7 +1,5 @@
-FROM openjdk:17.0.1-jdk-slim
-
-RUN apt update && apt install maven -y && apt install zip -y
-
+FROM maven:3.8.6-eclipse-temurin-11
+RUN apt update && apt install zip -y
 COPY . /opt
 WORKDIR /opt
 RUN mvn clean install -DskipTests
