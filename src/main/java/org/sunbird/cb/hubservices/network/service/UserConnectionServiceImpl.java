@@ -111,10 +111,9 @@ public class UserConnectionServiceImpl implements UserConnectionService {
 
         if (MapUtils.isEmpty(currentRelationship)
                 || StringUtils.isEmpty(currentRelationship.get(Constants.Graph.STATUS.getValue()))) {
-            logger.warn("updateUserConnection: no existing connection found between fromUserId={} toUserId={}",
-                    fromUserId, toUserId);
+            logger.warn(Constants.Message.NO_CONNECTION_FOUND_LOG, fromUserId, toUserId);
             response.put(Constants.ResponseStatus.MESSAGE,
-                    "No existing connection found between the specified users.");
+                    Constants.Message.NO_CONNECTION_FOUND);
             response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
             return response;
         }
@@ -122,7 +121,7 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         String currentStatus = currentRelationship.get(Constants.Graph.STATUS.getValue());
         String validationError = validateStatusTransition(currentStatus, status);
         if (StringUtils.isNotEmpty(validationError)) {
-            logger.warn("updateUserConnection: invalid transition '{}' -> '{}' for fromUserId={} toUserId={}",
+            logger.warn(Constants.Message.INVALID_TRANSITION_LOG,
                     currentStatus, status, fromUserId, toUserId);
             response.put(Constants.ResponseStatus.MESSAGE, validationError);
             response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
@@ -151,7 +150,7 @@ public class UserConnectionServiceImpl implements UserConnectionService {
     private String validateStatusTransition(String currentStatus, String requestedStatus) {
         if (Constants.REJECTED.equalsIgnoreCase(currentStatus)
                 && Constants.APPROVED.equalsIgnoreCase(requestedStatus)) {
-            return "Rejected requests cannot be approved";
+            return Constants.Message.REJECTED_REQUEST_CANNOT_BE_APPROVED;
         }
         return null; // valid transition
     }
