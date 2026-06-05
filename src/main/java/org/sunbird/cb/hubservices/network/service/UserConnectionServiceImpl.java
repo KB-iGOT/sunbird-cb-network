@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
 import org.sunbird.cb.hubservices.common.auth.AccessTokenValidator;
@@ -107,10 +108,9 @@ public class UserConnectionServiceImpl implements UserConnectionService {
 
         Map<String, String> currentRelationship =
                 connectionService.getRelationshipBetweenUsers(fromUserId, toUserId);
-        String currentStatus = (currentRelationship != null)
-                ? currentRelationship.get(Constants.Graph.STATUS.getValue())
-                : null;
-        if (StringUtils.isEmpty(currentStatus)) {
+
+        if (MapUtils.isEmpty(currentRelationship)
+                || StringUtils.isEmpty(currentRelationship.get(Constants.Graph.STATUS.getValue()))) {
             logger.warn("updateUserConnection: no existing connection found between fromUserId={} toUserId={}",
                     fromUserId, toUserId);
             response.put(Constants.ResponseStatus.MESSAGE,
@@ -118,8 +118,10 @@ public class UserConnectionServiceImpl implements UserConnectionService {
             response.put(Constants.ResponseStatus.STATUS, HttpStatus.BAD_REQUEST);
             return response;
         }
+
+        String currentStatus = currentRelationship.get(Constants.Graph.STATUS.getValue());
         String validationError = validateStatusTransition(currentStatus, status);
-        if (validationError != null) {
+        if (StringUtils.isNotEmpty(validationError)) {
             logger.warn("updateUserConnection: invalid transition '{}' -> '{}' for fromUserId={} toUserId={}",
                     currentStatus, status, fromUserId, toUserId);
             response.put(Constants.ResponseStatus.MESSAGE, validationError);
