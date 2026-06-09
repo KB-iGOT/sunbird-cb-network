@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Value;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.sunbird.cb.hubservices.cache.RedisCacheMgr;
@@ -17,12 +16,8 @@ import org.sunbird.cb.hubservices.model.SBApiResponse;
 import org.sunbird.cb.hubservices.serviceimpl.ConnectionService;
 import org.sunbird.cb.hubservices.util.Constants;
 
-import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 @Service
 public class UserConnectionServiceImpl implements UserConnectionService {
@@ -37,48 +32,6 @@ public class UserConnectionServiceImpl implements UserConnectionService {
 
     @Autowired
     RedisCacheMgr redisCacheMgr;
-
-    @Value("${connection.allowed.transitions.pending:Approved,Rejected,Withdrawn}")
-    private String pendingAllowedTransitions;
-
-    @Value("${connection.allowed.transitions.approved:Removed,Blocked}")
-    private String approvedAllowedTransitions;
-
-    @Value("${connection.allowed.transitions.blocked:Unblocked}")
-    private String blockedAllowedTransitions;
-
-    private static final Set<String> VALID_UPDATE_STATUSES = new HashSet<>(Arrays.asList(
-            Constants.Status.APPROVED,
-            Constants.Status.REJECTED,
-            Constants.Status.WITHDRAWN,
-            Constants.Status.REMOVED,
-            Constants.Status.BLOCKED,
-            Constants.Status.UNBLOCKED
-    ));
-
-    private final Map<String, Set<String>> ALLOWED_TRANSITIONS = new HashMap<>();
-
-    @Autowired
-    private void initAllowedTransitions() {
-        ALLOWED_TRANSITIONS.clear();
-        ALLOWED_TRANSITIONS.put(Constants.Status.PENDING, parseAllowedTransitions(pendingAllowedTransitions));
-        ALLOWED_TRANSITIONS.put(Constants.Status.APPROVED, parseAllowedTransitions(approvedAllowedTransitions));
-        ALLOWED_TRANSITIONS.put(Constants.Status.BLOCKED, parseAllowedTransitions(blockedAllowedTransitions));
-    }
-
-    private Set<String> parseAllowedTransitions(String transitionsCsv) {
-        Set<String> transitions = new HashSet<>();
-        if (StringUtils.isEmpty(transitionsCsv)) {
-            return transitions;
-        }
-        for (String transition : transitionsCsv.split(",")) {
-            String normalized = StringUtils.capitalize(StringUtils.lowerCase(StringUtils.trim(transition)));
-            if (StringUtils.isNotEmpty(normalized)) {
-                transitions.add(normalized);
-            }
-        }
-        return transitions;
-    }
 
     /**
      * This method is used to block a user.
@@ -195,25 +148,10 @@ public class UserConnectionServiceImpl implements UserConnectionService {
     }
 
     private String validateStatusTransition(String currentStatus, String requestedStatus) {
-        String normalizedCurrentStatus = StringUtils.capitalize(StringUtils.lowerCase(currentStatus));
-        String normalizedRequestedStatus = StringUtils.capitalize(StringUtils.lowerCase(requestedStatus));
-
-        if (!VALID_UPDATE_STATUSES.contains(normalizedRequestedStatus)) {
-            return String.format("Invalid status '%s'", requestedStatus);
-        }
-
-        if (Constants.REJECTED.equalsIgnoreCase(normalizedCurrentStatus)
-                && Constants.APPROVED.equalsIgnoreCase(normalizedRequestedStatus)) {
+        if (Constants.REJECTED.equalsIgnoreCase(currentStatus)
+                && Constants.APPROVED.equalsIgnoreCase(requestedStatus)) {
             return Constants.Message.REJECTED_REQUEST_CANNOT_BE_APPROVED;
         }
-
-        Set<String> allowedNextStates = ALLOWED_TRANSITIONS.get(normalizedCurrentStatus);
-        if (allowedNextStates == null
-                || !allowedNextStates.contains(normalizedRequestedStatus)) {
-            return String.format("State transition from '%s' to '%s' is not allowed", currentStatus, requestedStatus);
-        }
-
-
         return null; // valid transition
     }
 
