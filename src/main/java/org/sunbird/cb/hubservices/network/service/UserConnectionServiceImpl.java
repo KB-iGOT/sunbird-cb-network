@@ -195,7 +195,7 @@ public class UserConnectionServiceImpl implements UserConnectionService {
     }
 
     private String validateStatusTransition(String currentStatus, String requestedStatus) {
-        String normalizedCurrentStatus = StringUtils.capitalize(StringUtils.lowerCase(currentStatus));
+        String normalizedCurrentStatus = normalizeCurrentStatusForTransition(currentStatus);
         String normalizedRequestedStatus = StringUtils.capitalize(StringUtils.lowerCase(requestedStatus));
 
         if (!VALID_UPDATE_STATUSES.contains(normalizedRequestedStatus)) {
@@ -215,6 +215,19 @@ public class UserConnectionServiceImpl implements UserConnectionService {
 
 
         return null; // valid transition
+    }
+
+    private String normalizeCurrentStatusForTransition(String currentStatus) {
+        String normalizedCurrentStatus = StringUtils.capitalize(StringUtils.lowerCase(currentStatus));
+        if ("Received".equalsIgnoreCase(normalizedCurrentStatus)
+                || "Requested".equalsIgnoreCase(normalizedCurrentStatus)) {
+            return Constants.Status.PENDING;
+        }
+        if ("Blocked Incoming".equalsIgnoreCase(currentStatus)
+                || "Blocked Outgoing".equalsIgnoreCase(currentStatus)) {
+            return Constants.Status.BLOCKED;
+        }
+        return normalizedCurrentStatus;
     }
 
     @Override
